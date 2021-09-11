@@ -4,6 +4,7 @@ import (
 	"os"
 	"time"
 
+	fiber "github.com/gofiber/fiber/v2"
 	"github.com/rs/zerolog"
 	flag "github.com/spf13/pflag"
 )
@@ -36,4 +37,22 @@ func main() {
 	}
 
 	log.Info().Msg("starting...")
+
+	// Set up the routes
+	app := fiber.New()
+	api := app.Group("/api", func(c *fiber.Ctx) error {
+		return c.Next()
+	})
+	api.Get("/users", func(c *fiber.Ctx) error {
+		log.Info().Msg("called /users")
+		return c.SendString("called /users")
+	})
+
+	canceling := make(chan struct{})
+	go func() {
+		app.Listen(":8080")
+		close(canceling)
+	}()
+
+	<-canceling
 }
