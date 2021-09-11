@@ -12,3 +12,6 @@ TODO.
   - [ ] Add `SortOrder` ('asc' or 'desc')
   - [ ] Add `SortBy` ('email', 'name')
 
+### Client
+
+- [ ] Create Iterator for getting list of users?

@@ -44,10 +44,7 @@ func main() {
 	api := app.Group("/api", func(c *fiber.Ctx) error {
 		return c.Next()
 	})
-	api.Get("/users", func(c *fiber.Ctx) error {
-		log.Info().Msg("called /users")
-		return c.SendString("called /users")
-	})
+	api.Get("/users", listUsersHandler)
 
 	// Probes
 	probes := fiber.New()
@@ -71,9 +68,4 @@ func main() {
 	}()
 
 	wg.Wait()
-}
-
-func getUsersList() {
-	l := log.With().Logger()
-	_ = l
 }

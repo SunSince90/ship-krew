@@ -17,3 +17,4 @@ TODO: better description.
 
 - [ ] Prevent users from registering as `healthz`, as this is used for liveness probe
 - [ ] Return appropriate status codes on probes, i.e. is not ready if it does not detect a database, cache etc...
+- [ ] Rename `per-page` as `perPage`? And same for other query parameteres
