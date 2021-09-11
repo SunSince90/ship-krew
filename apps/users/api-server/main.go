@@ -72,3 +72,8 @@ func main() {
 
 	wg.Wait()
 }
+
+func getUsersList() {
+	l := log.With().Logger()
+	_ = l
+}
