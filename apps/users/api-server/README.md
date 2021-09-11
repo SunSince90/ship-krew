@@ -10,5 +10,10 @@ TODO: better description.
 
 ### Flags
 
-- `--database-url`: for where to find the database. (default: users.ship-krew-databases)
-- `--cache-url`: for where to find the cache. (default: users.ship-krew-caches)
+- [ ] `--database-url`: for where to find the database. (default: users.ship-krew-databases)
+- [ ] `--cache-url`: for where to find the cache. (default: users.ship-krew-caches)
+
+### Others
+
+- [ ] Prevent users from registering as `healthz`, as this is used for liveness probe
+- [ ] Return appropriate status codes on probes, i.e. is not ready if it does not detect a database, cache etc...

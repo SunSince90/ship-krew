@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"sync"
 	"time"
 
 	fiber "github.com/gofiber/fiber/v2"
@@ -48,11 +49,26 @@ func main() {
 		return c.SendString("called /users")
 	})
 
-	canceling := make(chan struct{})
+	// Probes
+	probes := fiber.New()
+	probes.Get("/api/users/healthz", func(c *fiber.Ctx) error {
+		return c.SendStatus(200)
+	})
+	probes.Get("/api/users/ready", func(c *fiber.Ctx) error {
+		return c.SendStatus(200)
+	})
+
+	wg := sync.WaitGroup{}
+	wg.Add(2)
+
 	go func() {
+		defer wg.Done()
 		app.Listen(":8080")
-		close(canceling)
+	}()
+	go func() {
+		defer wg.Done()
+		probes.Listen(":8081")
 	}()
 
-	<-canceling
+	wg.Wait()
 }
