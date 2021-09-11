@@ -17,5 +17,5 @@ type User struct {
 	UpdatedAt time.Time `json:"updated_at"`
 	// DeletedAt is the time when this person was deleted.
 	// Nil means that this person is not deleted.
-	DeletedAt *time.Time `json:"deleted_at"`
+	DeletedAt *time.Time `json:"deleted_at,omitempty"`
 }

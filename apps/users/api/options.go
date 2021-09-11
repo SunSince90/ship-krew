@@ -9,3 +9,10 @@ type ListUsersOptions struct {
 	// Default: 20.
 	PerPage int
 }
+
+// GetUserOptions are options that will be used when getting a single user
+// from the board.
+type GetUserOptions struct {
+	// Name of the user.
+	Name string
+}
