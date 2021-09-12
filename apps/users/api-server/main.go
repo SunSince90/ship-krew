@@ -45,6 +45,7 @@ func main() {
 		return c.Next()
 	})
 	api.Get("/users", listUsersHandler)
+	api.Post("/users", createUserHandler)
 	api.Get("/users/:name", getUserHandler)
 
 	// Probes
