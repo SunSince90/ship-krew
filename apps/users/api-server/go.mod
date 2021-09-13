@@ -4,6 +4,7 @@ go 1.17
 
 require (
 	github.com/SunSince90/ship-krew/users/api v0.0.0-00010101000000-000000000000
+	github.com/brianvoe/gofakeit/v6 v6.7.1
 	github.com/gofiber/fiber/v2 v2.18.0
 	github.com/rs/zerolog v1.25.0
 	github.com/satori/go.uuid v1.2.0

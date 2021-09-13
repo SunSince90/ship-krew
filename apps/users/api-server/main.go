@@ -1,12 +1,16 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"sync"
 	"time"
 
+	usersapi "github.com/SunSince90/ship-krew/users/api"
+	fakeit "github.com/brianvoe/gofakeit/v6"
 	fiber "github.com/gofiber/fiber/v2"
 	"github.com/rs/zerolog"
+	uuid "github.com/satori/go.uuid"
 	flag "github.com/spf13/pflag"
 )
 
@@ -19,13 +23,20 @@ type options struct {
 }
 
 func main() {
+	testUsers := 0
 	verbosityLevels := []zerolog.Level{zerolog.DebugLevel, zerolog.InfoLevel, zerolog.ErrorLevel, zerolog.FatalLevel}
 	log = zerolog.New(os.Stderr).With().Timestamp().Logger()
 	zerolog.TimeFieldFormat = time.RFC3339
 
 	opts := &options{}
 	flag.IntVarP(&opts.verbosity, "verbosity", "v", 1, "the log verbosity level: 0 is the most verbose and 3 the quietest.")
+	flag.IntVar(&testUsers, "test-users", 0, "the number of test users to create. If more than 1, then test mode will enabled and verbosity will be put to 0 automatically")
 	flag.Parse()
+
+	if testUsers > 0 {
+		opts.verbosity = 0
+		log.Info().Int("test-users", testUsers).Msg("test mode requested")
+	}
 
 	if opts.verbosity < 0 || opts.verbosity > 3 {
 		zerolog.SetGlobalLevel(zerolog.InfoLevel)
@@ -39,6 +50,10 @@ func main() {
 
 	log.Info().Msg("starting...")
 
+	if testUsers > 0 {
+		createTestUsers(testUsers)
+	}
+
 	// Set up the routes
 	app := fiber.New()
 	api := app.Group("/api", func(c *fiber.Ctx) error {
@@ -47,6 +62,7 @@ func main() {
 	api.Get("/users", listUsersHandler)
 	api.Post("/users", createUserHandler)
 	api.Get("/users/:name", getUserHandler)
+	api.Put("/users/:name", updateUserHandler)
 
 	// Probes
 	probes := fiber.New()
@@ -70,4 +86,37 @@ func main() {
 	}()
 
 	wg.Wait()
+}
+
+// TODO: this is just for testing and will be removed.
+var usersList map[string]usersapi.User
+
+func createTestUsers(count int) {
+	log.Info().Msg("creating test users...")
+	fmt.Println()
+
+	if len(usersList) == 0 {
+		usersList = map[string]usersapi.User{}
+	}
+
+	for i := 0; i < count; i++ {
+		userToCreate := usersapi.User{
+			ID:        uuid.NewV4().String(),
+			Name:      fakeit.Username(),
+			Bio:       fakeit.Quote(),
+			CreatedAt: fakeit.Date(),
+		}
+
+		fmt.Println(userToCreate)
+		usersList[userToCreate.Name] = userToCreate
+	}
+	fmt.Println()
+}
+
+func updateTestUser(name string, newData usersapi.User) {
+	usersList[name] = newData
+}
+
+func deleteTestUser(name string) {
+	delete(usersList, name)
 }

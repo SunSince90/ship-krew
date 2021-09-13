@@ -17,24 +17,32 @@ func getUserHandler(c *fiber.Ctx) error {
 		Name: username,
 	}
 
-	user, err := getUser(opts)
+	usr, err := getUser(opts)
 	if err != nil {
-		_ = err
+		c.SendStatus(fiber.ErrInternalServerError.Code)
+		return c.Send([]byte(err.Error()))
 	}
 
-	if user == nil {
-		return c.SendStatus(404)
+	if usr == nil {
+		return c.JSON(fiber.ErrNotFound)
 	}
 
-	return c.JSON(user)
+	return c.JSON(usr)
 }
 
 func getUser(opts usersapi.GetUserOptions) (*usersapi.User, error) {
-	for _, user := range usersList {
-		if user.Name == opts.Name {
-			return &user, nil
-		}
+	if len(usersList) > 0 {
+		return getTestUser(opts.Name), nil
 	}
 
-	return nil, nil
+	return nil, fmt.Errorf("not implemented")
+}
+
+func getTestUser(name string) *usersapi.User {
+	user, exists := usersList[name]
+	if !exists {
+		return nil
+	}
+
+	return &user
 }
