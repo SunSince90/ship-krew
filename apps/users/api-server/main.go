@@ -63,6 +63,7 @@ func main() {
 	api.Post("/users", createUserHandler)
 	api.Get("/users/:name", getUserHandler)
 	api.Put("/users/:name", updateUserHandler)
+	api.Delete("/users/:name", deleteUserHandler)
 
 	// Probes
 	probes := fiber.New()

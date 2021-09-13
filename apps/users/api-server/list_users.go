@@ -12,10 +12,15 @@ func listUsersHandler(c *fiber.Ctx) error {
 		c.Params("page", "0"),
 		c.Params("per-page", "20"),
 	)
-	_ = opts
 
-	if len(usersList) > 0 {
-		return c.JSON(getTestUsersList())
+	list, err := getUsersList(opts)
+	if err != nil {
+		c.SendStatus(fiber.ErrInternalServerError.Code)
+		return c.Send([]byte(err.Error()))
+	}
+
+	if len(list) > 0 {
+		return c.JSON(list)
 	}
 
 	return c.SendStatus(fiber.ErrNotImplemented.Code)
