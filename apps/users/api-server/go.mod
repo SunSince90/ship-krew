@@ -1,4 +1,4 @@
-module github.com/SunSince90/ship-krew/users/api-server
+module github.com/SunSince90/ship-krew/apps/users/api-server
 
 go 1.17
 
@@ -19,3 +19,5 @@ require (
 	golang.org/x/sys v0.0.0-20210514084401-e8d321eab015 // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
 )
+
+// replace github.com/SunSince90/ship-krew/users/api-server/pkg => ./pkg

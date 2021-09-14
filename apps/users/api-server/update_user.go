@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/SunSince90/ship-krew/users/api-server/pkg/api"
+	"github.com/SunSince90/ship-krew/apps/users/api-server/pkg/api"
 	fiber "github.com/gofiber/fiber/v2"
 )
 

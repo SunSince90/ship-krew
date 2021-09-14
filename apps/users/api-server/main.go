@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/SunSince90/ship-krew/users/api-server/pkg/api"
+	"github.com/SunSince90/ship-krew/apps/users/api-server/pkg/api"
 	fakeit "github.com/brianvoe/gofakeit/v6"
 	fiber "github.com/gofiber/fiber/v2"
 	"github.com/rs/zerolog"
