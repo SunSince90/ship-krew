@@ -60,6 +60,7 @@ func main() {
 		return c.Next()
 	})
 	api.Get("/users", listUsersHandler)
+	api.Get("/users/version", getVersionHandler)
 	api.Post("/users", createUserHandler)
 	api.Get("/users/:name", getUserHandler)
 	api.Put("/users/:name", updateUserHandler)
@@ -120,4 +121,16 @@ func updateTestUser(name string, newData usersapi.User) {
 
 func deleteTestUser(name string) {
 	delete(usersList, name)
+}
+
+var (
+	version   string
+	gitCommit string
+)
+
+func getVersionHandler(c *fiber.Ctx) error {
+	return c.JSON(map[string]string{
+		"Version":    version,
+		"Git Commit": gitCommit,
+	})
 }
