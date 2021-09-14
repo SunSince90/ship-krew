@@ -68,10 +68,10 @@ func main() {
 
 	// Probes
 	probes := fiber.New()
-	probes.Get("/api/users/healthz", func(c *fiber.Ctx) error {
+	probes.Get("/healthz", func(c *fiber.Ctx) error {
 		return c.SendStatus(200)
 	})
-	probes.Get("/api/users/ready", func(c *fiber.Ctx) error {
+	probes.Get("/ready", func(c *fiber.Ctx) error {
 		return c.SendStatus(200)
 	})
 
