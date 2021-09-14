@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	usersapi "github.com/SunSince90/ship-krew/users/api"
+	"github.com/SunSince90/ship-krew/users/api-server/pkg/api"
 	fiber "github.com/gofiber/fiber/v2"
 )
 
@@ -13,7 +13,7 @@ func getUserHandler(c *fiber.Ctx) error {
 		return fmt.Errorf("username is empty")
 	}
 
-	opts := usersapi.GetUserOptions{
+	opts := api.GetUserOptions{
 		Name: username,
 	}
 
@@ -30,7 +30,7 @@ func getUserHandler(c *fiber.Ctx) error {
 	return c.JSON(usr)
 }
 
-func getUser(opts usersapi.GetUserOptions) (*usersapi.User, error) {
+func getUser(opts api.GetUserOptions) (*api.User, error) {
 	if len(usersList) > 0 {
 		return getTestUser(opts.Name), nil
 	}
@@ -38,7 +38,7 @@ func getUser(opts usersapi.GetUserOptions) (*usersapi.User, error) {
 	return nil, fmt.Errorf("not implemented")
 }
 
-func getTestUser(name string) *usersapi.User {
+func getTestUser(name string) *api.User {
 	user, exists := usersList[name]
 	if !exists {
 		return nil

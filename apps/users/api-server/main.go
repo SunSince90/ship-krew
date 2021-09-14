@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	usersapi "github.com/SunSince90/ship-krew/users/api"
+	"github.com/SunSince90/ship-krew/users/api-server/pkg/api"
 	fakeit "github.com/brianvoe/gofakeit/v6"
 	fiber "github.com/gofiber/fiber/v2"
 	"github.com/rs/zerolog"
@@ -91,18 +91,18 @@ func main() {
 }
 
 // TODO: this is just for testing and will be removed.
-var usersList map[string]usersapi.User
+var usersList map[string]api.User
 
 func createTestUsers(count int) {
 	log.Info().Msg("creating test users...")
 	fmt.Println()
 
 	if len(usersList) == 0 {
-		usersList = map[string]usersapi.User{}
+		usersList = map[string]api.User{}
 	}
 
 	for i := 0; i < count; i++ {
-		userToCreate := usersapi.User{
+		userToCreate := api.User{
 			ID:        uuid.NewV4().String(),
 			Name:      fakeit.Username(),
 			Bio:       fakeit.Quote(),
@@ -115,7 +115,7 @@ func createTestUsers(count int) {
 	fmt.Println()
 }
 
-func updateTestUser(name string, newData usersapi.User) {
+func updateTestUser(name string, newData api.User) {
 	usersList[name] = newData
 }
 
@@ -124,13 +124,13 @@ func deleteTestUser(name string) {
 }
 
 var (
-	version   string
+	// version   string
 	gitCommit string
 )
 
 func getVersionHandler(c *fiber.Ctx) error {
 	return c.JSON(map[string]string{
-		"Version":    version,
+		// "Version":    version,
 		"Git Commit": gitCommit,
 	})
 }

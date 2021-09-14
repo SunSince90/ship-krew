@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/SunSince90/ship-krew/users/api"
+	"github.com/SunSince90/ship-krew/users/api-server/pkg/api"
 	fiber "github.com/gofiber/fiber/v2"
 )
 

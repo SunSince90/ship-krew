@@ -3,7 +3,7 @@ package main
 import (
 	"strconv"
 
-	usersapi "github.com/SunSince90/ship-krew/users/api"
+	"github.com/SunSince90/ship-krew/users/api-server/pkg/api"
 	fiber "github.com/gofiber/fiber/v2"
 )
 
@@ -26,7 +26,7 @@ func listUsersHandler(c *fiber.Ctx) error {
 	return c.SendStatus(fiber.ErrNotImplemented.Code)
 }
 
-func parseListUsersOptions(pageParam, perPageParam string) usersapi.ListUsersOptions {
+func parseListUsersOptions(pageParam, perPageParam string) api.ListUsersOptions {
 	l := log
 
 	page, err := strconv.Atoi(pageParam)
@@ -41,23 +41,23 @@ func parseListUsersOptions(pageParam, perPageParam string) usersapi.ListUsersOpt
 		perPage = 20
 	}
 
-	return usersapi.ListUsersOptions{
+	return api.ListUsersOptions{
 		Page:    page,
 		PerPage: perPage,
 	}
 }
 
-func getUsersList(opts usersapi.ListUsersOptions) ([]usersapi.User, error) {
+func getUsersList(opts api.ListUsersOptions) ([]api.User, error) {
 	// Are we running in test mode?
 	if len(usersList) > 0 {
 		return getTestUsersList(), nil
 	}
 
-	return []usersapi.User{}, nil
+	return []api.User{}, nil
 }
 
-func getTestUsersList() []usersapi.User {
-	list := []usersapi.User{}
+func getTestUsersList() []api.User {
+	list := []api.User{}
 
 	for _, usr := range usersList {
 		list = append(list, usr)

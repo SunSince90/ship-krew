@@ -3,7 +3,6 @@ module github.com/SunSince90/ship-krew/users/api-server
 go 1.17
 
 require (
-	github.com/SunSince90/ship-krew/users/api v0.0.0-00010101000000-000000000000
 	github.com/brianvoe/gofakeit/v6 v6.7.1
 	github.com/gofiber/fiber/v2 v2.18.0
 	github.com/rs/zerolog v1.25.0
@@ -20,5 +19,3 @@ require (
 	golang.org/x/sys v0.0.0-20210514084401-e8d321eab015 // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
 )
-
-replace github.com/SunSince90/ship-krew/users/api => ../api

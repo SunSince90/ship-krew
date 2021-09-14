@@ -4,12 +4,12 @@ import (
 	"encoding/json"
 	"net/http"
 
-	usersapi "github.com/SunSince90/ship-krew/users/api"
+	"github.com/SunSince90/ship-krew/users/api-server/pkg/api"
 	fiber "github.com/gofiber/fiber/v2"
 )
 
 func updateUserHandler(c *fiber.Ctx) error {
-	var newData usersapi.User
+	var newData api.User
 	userName := c.Params("name")
 	if err := json.Unmarshal(c.Body(), &newData); err != nil {
 		return c.SendStatus(http.StatusBadRequest)
@@ -23,7 +23,7 @@ func updateUserHandler(c *fiber.Ctx) error {
 		return c.SendStatus(http.StatusBadRequest)
 	}
 
-	previous, err := getUser(usersapi.GetUserOptions{Name: userName})
+	previous, err := getUser(api.GetUserOptions{Name: userName})
 	if err != nil {
 		c.SendStatus(fiber.ErrInternalServerError.Code)
 		return c.Send([]byte(err.Error()))
@@ -33,7 +33,7 @@ func updateUserHandler(c *fiber.Ctx) error {
 		return c.SendStatus(fiber.ErrNotFound.Code)
 	}
 
-	newUser, err := getUser(usersapi.GetUserOptions{Name: newData.Name})
+	newUser, err := getUser(api.GetUserOptions{Name: newData.Name})
 	if err != nil {
 		c.SendStatus(fiber.ErrInternalServerError.Code)
 		return c.Send([]byte(err.Error()))

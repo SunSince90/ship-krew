@@ -3,13 +3,13 @@ package main
 import (
 	"encoding/json"
 
-	usersapi "github.com/SunSince90/ship-krew/users/api"
+	"github.com/SunSince90/ship-krew/users/api-server/pkg/api"
 	fiber "github.com/gofiber/fiber/v2"
 	uuid "github.com/satori/go.uuid"
 )
 
 func createUserHandler(c *fiber.Ctx) error {
-	var userToCreate usersapi.User
+	var userToCreate api.User
 
 	if err := json.Unmarshal(c.Body(), &userToCreate); err != nil {
 		return c.SendStatus(fiber.ErrBadRequest.Code)
