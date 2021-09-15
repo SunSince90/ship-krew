@@ -1,0 +1,72 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ship-krew-backend
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: ship-krew
+    ship-krew.io/app: users
+    users.ship-krew.io/component: api-server
+  name: users-api-server
+  namespace: ship-krew-backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ship-krew
+      ship-krew.io/app: users
+      users.ship-krew.io/component: api-server
+  template:
+    metadata:
+      labels:
+        app: ship-krew
+        ship-krew.io/app: users
+        users.ship-krew.io/component: api-server
+    spec:
+      imagePullSecrets:
+      - name: ghcr-docker-secret
+      containers:
+      - image: ghcr.io/sunsince90/ship-krew/users-api-server:v0.1.0
+        name: api-server
+        args: [--verbosity=0, --test-users=10]
+        ports:
+        - name: probes
+          containerPort: 8081
+        - name: public
+          containerPort: 8080
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: probes
+          initialDelaySeconds: 3
+          periodSeconds: 3
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: probes
+          initialDelaySeconds: 3
+          periodSeconds: 3
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: ship-krew
+    ship-krew.io/app: users
+    users.ship-krew.io/component: api-server
+  name: users-api-server
+  namespace: ship-krew-backend
+spec:
+  ports:
+  - name: public
+    port: 80
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app: ship-krew
+    ship-krew.io/app: users
+    users.ship-krew.io/component: api-server
+  type: LoadBalancer

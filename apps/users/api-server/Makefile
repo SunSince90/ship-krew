@@ -1,3 +1,4 @@
+IMG ?= <repository>
 GIT_COMMIT=$(shell git rev-list -1 HEAD)
 # VERSION=$(shell git describe --tags)
 
@@ -6,3 +7,10 @@ build:
 
 run:
 	go run main.go
+
+docker-build:
+	docker build . -t ${IMG}
+
+# Push the docker image
+docker-push:
+	docker push ${IMG}
