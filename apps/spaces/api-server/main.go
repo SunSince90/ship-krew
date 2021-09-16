@@ -1,8 +1,12 @@
 package main
 
 import (
+	"fmt"
+	"net/http"
 	"os"
+	"sync"
 
+	"github.com/gofiber/fiber/v2"
 	"github.com/rs/zerolog"
 	flag "github.com/spf13/pflag"
 )
@@ -12,7 +16,7 @@ var (
 )
 
 func main() {
-	usersApiAddress := "users-api-server.ship-krew-backend"
+	usersApiAddress := "users-api-server.ship-krew-backend:8081"
 	testSpaces := 0
 	verbosity := 1
 
@@ -41,4 +45,30 @@ func main() {
 
 	log = log.Level(verbosityLevels[verbosity]).With().Logger()
 	log.Info().Msg("starting...")
+
+	// Probes
+	probes := fiber.New()
+	probes.Get("/healthz", func(c *fiber.Ctx) error {
+		return c.SendStatus(200)
+	})
+	probes.Get("/ready", func(c *fiber.Ctx) error {
+		resp, err := http.Get(fmt.Sprintf("%s/ready", usersApiAddress))
+		if err != nil {
+			return c.SendStatus(fiber.StatusInternalServerError)
+		}
+		if resp.StatusCode != fiber.StatusOK {
+			return c.SendStatus(fiber.StatusInternalServerError)
+		}
+
+		return c.SendStatus(fiber.StatusOK)
+	})
+
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		probes.Listen(":8081")
+	}()
+
+	wg.Wait()
 }
