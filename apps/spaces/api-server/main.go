@@ -46,6 +46,31 @@ func main() {
 	log = log.Level(verbosityLevels[verbosity]).With().Logger()
 	log.Info().Msg("starting...")
 
+	app := fiber.New()
+	api := app.Group("/api", func(c *fiber.Ctx) error {
+		return c.Next()
+	})
+
+	// Spaces API
+	spaces := api.Group("/spaces", func(c *fiber.Ctx) error {
+		return c.Next()
+	})
+	spaces.Get("/", func(c *fiber.Ctx) error {
+		return c.SendStatus(fiber.ErrNotImplemented.Code)
+	})
+	spaces.Post("/", func(c *fiber.Ctx) error {
+		return c.SendStatus(fiber.ErrNotImplemented.Code)
+	})
+	spaces.Get("/:id", func(c *fiber.Ctx) error {
+		return c.SendStatus(fiber.StatusNotImplemented)
+	})
+	spaces.Put("/:id", func(c *fiber.Ctx) error {
+		return c.SendStatus(fiber.ErrNotImplemented.Code)
+	})
+	spaces.Delete("/:id", func(c *fiber.Ctx) error {
+		return c.SendStatus(fiber.ErrNotImplemented.Code)
+	})
+
 	// Probes
 	probes := fiber.New()
 	probes.Get("/healthz", func(c *fiber.Ctx) error {
@@ -64,7 +89,11 @@ func main() {
 	})
 
 	wg := sync.WaitGroup{}
-	wg.Add(1)
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		app.Listen(":8080")
+	}()
 	go func() {
 		defer wg.Done()
 		probes.Listen(":8081")

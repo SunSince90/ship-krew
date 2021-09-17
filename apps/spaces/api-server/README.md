@@ -6,3 +6,4 @@ The API server for the spaces component.
 
 - [ ] Move package API somewhere else?
 - [ ] Use user API client
+- [ ] get spaces with filter: `name`, `similar`, `byAuthor`, etc.
