@@ -69,4 +69,25 @@ spec:
     app: ship-krew
     ship-krew.io/app: users
     users.ship-krew.io/component: api-server
-  type: LoadBalancer
+  type: NodePort
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: ship-krew
+    ship-krew.io/app: users
+    users.ship-krew.io/component: api-server
+  name: users-api-server-probes
+  namespace: ship-krew-backend
+spec:
+  ports:
+  - name: probes
+    port: 80
+    protocol: TCP
+    targetPort: 8081
+  selector:
+    app: ship-krew
+    ship-krew.io/app: users
+    users.ship-krew.io/component: api-server
+  type: ClusterIP
