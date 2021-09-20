@@ -30,6 +30,7 @@ spec:
       - name: ghcr-docker-secret
       containers:
       - image: ghcr.io/sunsince90/ship-krew/spaces-api-server:v0.1.0
+        imagePullPolicy: Always
         name: api-server
         args: [--verbosity=0, --test-spaces=10]
         ports:

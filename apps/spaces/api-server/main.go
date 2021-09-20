@@ -77,7 +77,7 @@ func main() {
 		return c.SendStatus(200)
 	})
 	probes.Get("/ready", func(c *fiber.Ctx) error {
-		resp, err := http.Get(fmt.Sprintf("%s/ready", usersApiAddress))
+		resp, err := http.Get(fmt.Sprintf("http://%s/ready", usersApiAddress))
 		if err != nil {
 			return c.SendStatus(fiber.StatusInternalServerError)
 		}
