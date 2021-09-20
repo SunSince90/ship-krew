@@ -16,7 +16,7 @@ var (
 )
 
 func main() {
-	usersApiAddress := "users-api-server.ship-krew-backend:8081"
+	usersApiAddress := "http://users-api-server-probes.ship-krew-backend"
 	testSpaces := 0
 	verbosity := 1
 
@@ -77,7 +77,7 @@ func main() {
 		return c.SendStatus(200)
 	})
 	probes.Get("/ready", func(c *fiber.Ctx) error {
-		resp, err := http.Get(fmt.Sprintf("http://%s/ready", usersApiAddress))
+		resp, err := http.Get(fmt.Sprintf("%s/ready", usersApiAddress))
 		if err != nil {
 			return c.SendStatus(fiber.StatusInternalServerError)
 		}
