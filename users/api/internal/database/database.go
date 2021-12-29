@@ -54,6 +54,7 @@ func (c *Database) GetUserByUsername(username string) (*api.User, error) {
 		return nil, &uerrors.Error{
 			Code:    uerrors.CodeInternalServerError,
 			Message: uerrors.MessageInternalServerError,
+			Err:     uerrors.ErrInternalServerError,
 		}
 	}
 

@@ -2,11 +2,20 @@ package main
 
 import (
 	"flag"
+	"net/url"
 	"os"
+	"os/signal"
 	"time"
 
+	udb "github.com/SunSince90/ship-krew/users/api/internal/database"
 	"github.com/SunSince90/ship-krew/users/api/pkg/database"
+	uerrors "github.com/SunSince90/ship-krew/users/api/pkg/errors"
+	"github.com/gofiber/fiber/v2"
 	"github.com/rs/zerolog"
+)
+
+const (
+	fiberAppName string = "Users API Server"
 )
 
 var (
@@ -19,7 +28,7 @@ func main() {
 		dbSettings = &database.Settings{}
 	)
 
-	flag.IntVar(&verbosity, "verbosity", 0, "the verbosity level")
+	flag.IntVar(&verbosity, "verbosity", 1, "the verbosity level")
 
 	flag.StringVar(&dbSettings.Name, "database-name", "", "the name of the database to connect to")
 	flag.StringVar(&dbSettings.User, "database-user", "", "the username to connect as")
@@ -39,5 +48,62 @@ func main() {
 		log = log.Level(logLevels[verbosity])
 	}
 
-	// TODO: continue
+	db, err := database.NewDatabaseConnection(dbSettings)
+	if err != nil {
+		log.Err(err).Msg("error while establishing connection to the database")
+		return
+	}
+
+	usersDB := &udb.Database{DB: db, Logger: log}
+
+	app := fiber.New(fiber.Config{
+		AppName:               fiberAppName,
+		ReadTimeout:           time.Minute,
+		DisableStartupMessage: verbosity > 0,
+	})
+
+	users := app.Group("/users")
+
+	users.Get("/username/:username", func(c *fiber.Ctx) error {
+		username := c.Params("username")
+
+		uname, err := url.PathUnescape(username)
+		if err != nil || uname == "" {
+			return c.
+				Status(fiber.StatusBadRequest).
+				JSON(&uerrors.Error{
+					Code:    uerrors.CodeInvalidUsername,
+					Message: uerrors.MessageInvalidUsername,
+				})
+		}
+
+		user, err := usersDB.GetUserByUsername(username)
+		if err != nil {
+			code := err.(*uerrors.Error).Code
+
+			return c.
+				Status(uerrors.ToHTTPStatusCode(code)).
+				JSON(err)
+		}
+
+		return c.JSON(user)
+	})
+
+	go func() {
+		if err := app.Listen(":8080"); err != nil {
+			log.Err(err).Msg("error while listening")
+		}
+	}()
+
+	// Graceful Shutdown
+
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, os.Interrupt)
+	<-stop
+
+	log.Info().Msg("shutting down...")
+	if err := app.Shutdown(); err != nil {
+		log.Err(err).Msg("error while waiting for server to shutdown")
+	}
+	log.Info().Msg("goodbye!")
 }

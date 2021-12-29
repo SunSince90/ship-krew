@@ -1,6 +1,10 @@
 package errors
 
-import "errors"
+import (
+	"errors"
+
+	"github.com/gofiber/fiber/v2"
+)
 
 // Codes
 const (
@@ -24,7 +28,20 @@ const (
 
 // Sentinel errors
 var (
-	ErrUserNotFound    error
-	ErrEmptyUsername   error = errors.New("empty username")
-	ErrInvalidUsername error = errors.New("invalid username")
+	ErrUserNotFound        error = errors.New("user not found")
+	ErrInternalServerError error = errors.New("internal server error")
+	ErrEmptyUsername       error = errors.New("empty username")
+	ErrInvalidUsername     error = errors.New("invalid username")
 )
+
+func ToHTTPStatusCode(code int) int {
+	switch code {
+	case CodeEmptyUsername,
+		CodeInvalidUsername:
+		return fiber.StatusBadRequest
+	case CodeUserNotFound:
+		return fiber.StatusNotFound
+	default:
+		return fiber.StatusInternalServerError
+	}
+}
