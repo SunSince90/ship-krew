@@ -5,6 +5,7 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
+	"strconv"
 	"time"
 
 	udb "github.com/SunSince90/ship-krew/users/api/internal/database"
@@ -78,6 +79,41 @@ func main() {
 		}
 
 		user, err := usersDB.GetUserByUsername(username)
+		if err != nil {
+			code := err.(*uerrors.Error).Code
+
+			return c.
+				Status(uerrors.ToHTTPStatusCode(code)).
+				JSON(err)
+		}
+
+		return c.JSON(user)
+	})
+
+	users.Get("/id/:id", func(c *fiber.Ctx) error {
+		id := c.Params("id")
+
+		id, err := url.PathUnescape(id)
+		if err != nil || id == "" {
+			return c.
+				Status(fiber.StatusBadRequest).
+				JSON(&uerrors.Error{
+					Code:    uerrors.CodeInvalidUserID,
+					Message: uerrors.MessageInvalidUserID,
+				})
+		}
+
+		uid, err := strconv.ParseInt(id, 10, 64)
+		if err != nil {
+			return c.
+				Status(fiber.StatusBadRequest).
+				JSON(&uerrors.Error{
+					Code:    uerrors.CodeInvalidUserID,
+					Message: uerrors.MessageInvalidUserID,
+				})
+		}
+
+		user, err := usersDB.GetUserByID(uid)
 		if err != nil {
 			code := err.(*uerrors.Error).Code
 

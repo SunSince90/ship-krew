@@ -8,7 +8,7 @@ import (
 // TODO: write documentations
 
 type User struct {
-	ID             uint       `gorm:"primaryKey;<-:false" json:"id" yaml:"id"`
+	ID             int64      `gorm:"primaryKey;<-:false" json:"id" yaml:"id"`
 	CreatedAt      time.Time  `json:"created_at" yaml:"created_at"`
 	UpdatedAt      time.Time  `json:"updated_at" yaml:"updated_at"`
 	DeletedAt      *time.Time `gorm:"index" json:"deleted_at,omitempty" yaml:"deleted_at,omitempty"`
