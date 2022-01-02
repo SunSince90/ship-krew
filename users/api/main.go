@@ -1,7 +1,9 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
+	"fmt"
 	"net/url"
 	"os"
 	"os/signal"
@@ -9,6 +11,7 @@ import (
 	"time"
 
 	udb "github.com/SunSince90/ship-krew/users/api/internal/database"
+	"github.com/SunSince90/ship-krew/users/api/pkg/api"
 	"github.com/SunSince90/ship-krew/users/api/pkg/database"
 	uerrors "github.com/SunSince90/ship-krew/users/api/pkg/errors"
 	"github.com/gofiber/fiber/v2"
@@ -123,6 +126,41 @@ func main() {
 		}
 
 		return c.JSON(user)
+	})
+
+	users.Post("/", func(c *fiber.Ctx) error {
+		c.Accepts(fiber.MIMEApplicationJSON)
+
+		var newUser api.User
+
+		if len(c.Body()) == 0 {
+			return c.
+				Status(fiber.StatusBadRequest).
+				JSON(&uerrors.Error{
+					Code:    uerrors.CodeEmptyBody,
+					Message: uerrors.MessageEmptyBody,
+				})
+		}
+
+		if err := json.Unmarshal(c.Body(), &newUser); err != nil {
+			return c.
+				Status(fiber.StatusBadRequest).
+				JSON(&uerrors.Error{
+					Code:    uerrors.CodeInvalidUserPost,
+					Message: fmt.Sprintf("%s %s", uerrors.MessageInvalidUserPost, err.Error()),
+				})
+		}
+
+		createdUser, err := usersDB.CreateUser(&newUser)
+		if err != nil {
+			return c.
+				Status(uerrors.ToHTTPStatusCode(err.(*uerrors.Error).Code)).
+				JSON(err)
+		}
+
+		return c.
+			Status(fiber.StatusCreated).
+			JSON(createdUser)
 	})
 
 	go func() {
