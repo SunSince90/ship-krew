@@ -1,6 +1,8 @@
 package database
 
 import (
+	"crypto/sha256"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"net/mail"
@@ -13,6 +15,7 @@ import (
 )
 
 const (
+	// TODO: many of these should be pulled from configmaps, and they should be immutable.
 	usernameRegexp       string = "^[a-zA-Z0-9-_]+$"
 	maxUsernameLength    int    = 35
 	maxDisplayNameLength int    = 50
@@ -202,6 +205,73 @@ func (c *Database) CreateUser(user *api.User) (*api.User, error) {
 				Err:     uerrors.ErrEmailAlreadyExists,
 			}
 		}
+	}
+
+	{
+		if user.Base64PasswordHash == nil {
+			return nil, &uerrors.Error{
+				Code:    uerrors.CodeEmptyPasswordHash,
+				Message: uerrors.MessageEmptyPasswordHash,
+				Err:     uerrors.ErrEmptyPasswordHash,
+			}
+		}
+
+		password, err := base64.URLEncoding.DecodeString(*user.Base64PasswordHash)
+		if err != nil {
+			return nil, &uerrors.Error{
+				Code:    uerrors.CodeIncompatiblePasswordHash,
+				Message: uerrors.MessageIncompatiblePasswordHash,
+				Err:     uerrors.ErrIncompatiblePasswordHash,
+			}
+		}
+
+		if len(password) != sha256.Size {
+			return nil, &uerrors.Error{
+				Code:    uerrors.CodeIncompatiblePasswordHash,
+				Message: uerrors.MessageIncompatiblePasswordHash,
+				Err:     uerrors.ErrIncompatiblePasswordHash,
+			}
+		}
+
+		user.PasswordHash = password
+	}
+
+	{
+		var saltBytes []byte
+		if user.Base64Salt == nil {
+			salt, err := GenerateRandomBytes(sha256.Size)
+			if err != nil {
+				return nil, &uerrors.Error{
+					Code:    uerrors.CodeInternalServerError,
+					Message: uerrors.MessageInternalServerError,
+					Err:     err,
+				}
+			}
+			saltBytes = salt
+			saltString := base64.URLEncoding.EncodeToString(saltBytes)
+			user.Base64Salt = &saltString
+		} else {
+			salt, err := base64.URLEncoding.DecodeString(*user.Base64Salt)
+			if err != nil {
+				return nil, &uerrors.Error{
+					Code:    uerrors.CodeInvalidBase64Salt,
+					Message: uerrors.MessageInvalidBase64Salt,
+					Err:     err,
+				}
+			}
+
+			saltBytes = salt
+		}
+
+		if len(saltBytes) < sha256.Size {
+			return nil, &uerrors.Error{
+				Code:    uerrors.CodeInvalidSaltLength,
+				Message: uerrors.MessageInvalidSaltLength,
+				Err:     uerrors.ErrInvalidSaltLength,
+			}
+		}
+
+		user.Salt = saltBytes
 	}
 
 	if user.RegistrationIP == nil || (user.RegistrationIP != nil && user.RegistrationIP.String() == "") {
