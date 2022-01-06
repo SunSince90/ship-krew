@@ -14,20 +14,16 @@ import (
 // 		hash it and append the salt, and then call bytes.Equal(hashed, hashedDB)
 
 type User struct {
-	ID int64 `gorm:"primaryKey;<-:false" json:"id" yaml:"id"`
-	// This gets sent and received
-	Base64PasswordHash *string `gorm:"-" json:"password_hash" yaml:"passwordHash"`
-	// this is how it is on the dB
-	PasswordHash   []byte     `gorm:"column:password_hash" json:"-" yaml:"-"`
-	Base64Salt     *string    `gorm:"-"  json:"salt" yaml:"salt"`
-	Salt           []byte     `gorm:"column:salt" json:"-" yaml:"-"`
-	CreatedAt      time.Time  `json:"created_at" yaml:"created_at"`
-	UpdatedAt      *time.Time `json:"updated_at" yaml:"updated_at"`
-	DeletedAt      *time.Time `gorm:"index" json:"deleted_at,omitempty" yaml:"deleted_at,omitempty"`
-	Username       string     `gorm:"unique;size:100" json:"username" yaml:"username"`
-	DisplayName    string     `gorm:"unique;size:100" json:"display_name" yaml:"display_name"`
-	Email          *string    `gorm:"unique" json:"email" yaml:"email"`
-	RegistrationIP *net.IP    `json:"registration_ip" yaml:"registrationIP"`
-	Bio            *string    `json:"bio,omitempty" yaml:"bio,omitempty"`
-	Birthday       *time.Time `json:"birthday,omitempty" yaml:"birthday,omitempty"`
+	ID                 int64      `json:"id" yaml:"id"`
+	Base64PasswordHash *string    `json:"password_hash,omitempty" yaml:"passwordHash,omitempty"`
+	Base64Salt         *string    `json:"salt,omitempty" yaml:"salt,omitempty"`
+	CreatedAt          time.Time  `json:"created_at" yaml:"createdAt"`
+	UpdatedAt          *time.Time `json:"updated_at,omitempty" yaml:"updatedAt,omitempty"`
+	DeletedAt          *time.Time `json:"deleted_at,omitempty" yaml:"deletedAt,omitempty"`
+	Username           string     `json:"username" yaml:"username"`
+	DisplayName        string     `json:"display_name" yaml:"display_name"`
+	Email              *string    `json:"email,omitempty" yaml:"email,omitempty"`
+	RegistrationIP     *net.IP    `json:"registration_ip,omitempty" yaml:"registrationIP,omitempty"`
+	Bio                *string    `json:"bio,omitempty" yaml:"bio,omitempty"`
+	Birthday           *time.Time `json:"birthday,omitempty" yaml:"birthday,omitempty"`
 }

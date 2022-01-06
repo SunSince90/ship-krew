@@ -2,6 +2,7 @@ package database
 
 import (
 	"crypto/sha256"
+	"database/sql"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -50,7 +51,7 @@ func (c *Database) GetUserByUsername(username string) (*api.User, error) {
 	// TODO: get it from cache.
 
 	var user api.User
-	res := c.DB.Scopes(byUserName(username)).First(&user)
+	res := c.DB.Model(&User{}).Scopes(byUserName(username)).First(&user)
 	if res.Error != nil {
 		if errors.Is(res.Error, gorm.ErrRecordNotFound) {
 			return nil, &uerrors.Error{
@@ -79,7 +80,7 @@ func (c *Database) GetUserByID(id int64) (*api.User, error) {
 	}
 
 	var user api.User
-	res := c.DB.Scopes(byUserID(id)).First(&user)
+	res := c.DB.Model(&User{}).Scopes(byUserID(id)).First(&user)
 	if res.Error != nil {
 		if errors.Is(res.Error, gorm.ErrRecordNotFound) {
 			return nil, &uerrors.Error{
@@ -100,6 +101,8 @@ func (c *Database) GetUserByID(id int64) (*api.User, error) {
 }
 
 func (c *Database) CreateUser(user *api.User) (*api.User, error) {
+	userToCreate := &User{}
+
 	if user.Username == "" {
 		return nil, &uerrors.Error{
 			Code:    uerrors.CodeEmptyUsername,
@@ -142,6 +145,7 @@ func (c *Database) CreateUser(user *api.User) (*api.User, error) {
 			}
 		}
 	}
+	userToCreate.Username = user.Username
 
 	if user.DisplayName == "" {
 		return nil, &uerrors.Error{
@@ -158,6 +162,7 @@ func (c *Database) CreateUser(user *api.User) (*api.User, error) {
 			Err:     uerrors.ErrEmptyDisplayName,
 		}
 	}
+	userToCreate.DisplayName = user.DisplayName
 
 	if user.Email == nil {
 		return nil, &uerrors.Error{
@@ -206,6 +211,7 @@ func (c *Database) CreateUser(user *api.User) (*api.User, error) {
 			}
 		}
 	}
+	userToCreate.Email = *user.Email
 
 	{
 		if user.Base64PasswordHash == nil {
@@ -233,7 +239,7 @@ func (c *Database) CreateUser(user *api.User) (*api.User, error) {
 			}
 		}
 
-		user.PasswordHash = password
+		userToCreate.PasswordHash = password
 	}
 
 	{
@@ -271,7 +277,7 @@ func (c *Database) CreateUser(user *api.User) (*api.User, error) {
 			}
 		}
 
-		user.Salt = saltBytes
+		userToCreate.Salt = saltBytes
 	}
 
 	if user.RegistrationIP == nil || (user.RegistrationIP != nil && user.RegistrationIP.String() == "") {
@@ -281,16 +287,25 @@ func (c *Database) CreateUser(user *api.User) (*api.User, error) {
 			Err:     uerrors.ErrEmptyRegistrationIP,
 		}
 	}
+	userToCreate.RegistrationIP = user.RegistrationIP.String()
 
-	if user.Bio != nil && len(*user.Bio) > bioMaxLength {
-		return nil, &uerrors.Error{
-			Code:    uerrors.CodeBioTooLong,
-			Message: uerrors.MessageBioTooLong,
-			Err:     uerrors.ErrBioTooLong,
+	if user.Bio != nil {
+		if len(*user.Bio) > bioMaxLength {
+			return nil, &uerrors.Error{
+				Code:    uerrors.CodeBioTooLong,
+				Message: uerrors.MessageBioTooLong,
+				Err:     uerrors.ErrBioTooLong,
+			}
 		}
+
+		userToCreate.Bio = sql.NullString{String: *user.Bio, Valid: true}
 	}
 
-	res := c.DB.Table(usersTable).Create(user)
+	if user.Birthday != nil {
+		userToCreate.Birthday = sql.NullTime{Time: *user.Birthday, Valid: true}
+	}
+
+	res := c.DB.Table(usersTable).Create(userToCreate)
 	if res.Error != nil {
 		fmt.Println(res.Error)
 		return nil, &uerrors.Error{
@@ -299,6 +314,14 @@ func (c *Database) CreateUser(user *api.User) (*api.User, error) {
 			Err:     uerrors.ErrInternalServerError,
 		}
 	}
+
+	// Return minimum amount of information
+	user.ID = userToCreate.ID
+	user.Base64PasswordHash = nil
+	user.Base64Salt = nil
+	user.CreatedAt = userToCreate.CreatedAt
+	user.Email = nil
+	user.RegistrationIP = nil
 
 	return user, nil
 }
