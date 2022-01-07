@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"strings"
 	"time"
 
 	udb "github.com/SunSince90/ship-krew/users/api/internal/database"
@@ -67,6 +68,86 @@ func main() {
 	})
 
 	users := app.Group("/users")
+
+	users.Get("/", func(c *fiber.Ctx) error {
+		filters := &udb.ListFilters{}
+
+		page, err := func() (int, error) {
+			p, err := url.QueryUnescape(c.Query("page", "1"))
+			if err != nil {
+				return 0, fmt.Errorf("error while unescaping page: %w", err)
+			}
+
+			return strconv.Atoi(p)
+		}()
+		if err != nil || page < 1 {
+			return c.Status(fiber.StatusBadRequest).
+				JSON(&uerrors.Error{
+					Code:    uerrors.CodeInvalidPage,
+					Message: uerrors.MessageInvalidPage,
+					Err:     err,
+				})
+		}
+		filters.Page = &page
+
+		nameIn, err := url.QueryUnescape(c.Query("usernameIn"))
+		if err != nil {
+			return c.Status(fiber.StatusBadRequest).
+				JSON(&uerrors.Error{
+					Code:    uerrors.CodeInvalidNameIn,
+					Message: uerrors.MessageInvalidNameIn,
+					Err:     err,
+				})
+		}
+
+		emailIn, err := url.QueryUnescape(c.Query("emailIn"))
+		if err != nil {
+			return c.Status(fiber.StatusBadRequest).
+				JSON(&uerrors.Error{
+					Code:    uerrors.CodeInvalidEmailIn,
+					Message: uerrors.MessageInvalidEmailIn,
+					Err:     err,
+				})
+		}
+
+		idIn, err := url.QueryUnescape(c.Query("idIn"))
+		if err != nil {
+			return c.Status(fiber.StatusBadRequest).
+				JSON(&uerrors.Error{
+					Code:    uerrors.CodeInvalidIdIn,
+					Message: uerrors.MessageInvalidIdIn,
+					Err:     err,
+				})
+		}
+
+		switch {
+		case idIn != "":
+			filters.IDIn = func() (filteredIds []int64) {
+				ids := strings.Split(idIn, ",")
+				for _, id := range ids {
+					if val, err := strconv.ParseInt(id, 10, 64); err == nil && val > 0 {
+						filteredIds = append(filteredIds, val)
+					}
+				}
+				return
+			}()
+		case nameIn != "":
+			filters.UsernameIn = strings.Split(nameIn, ",")
+		case emailIn != "":
+			filters.EmailIn = strings.Split(emailIn, ",")
+		}
+
+		users, err := usersDB.ListUsers(filters)
+		if err != nil {
+			code := err.(*uerrors.Error).Code
+
+			return c.
+				Status(uerrors.ToHTTPStatusCode(code)).
+				JSON(err)
+		}
+
+		return c.JSON(users)
+	})
 
 	users.Get("/username/:username", func(c *fiber.Ctx) error {
 		username := c.Params("username")

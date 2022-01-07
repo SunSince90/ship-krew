@@ -27,6 +27,10 @@ const (
 	CodeIncompatiblePasswordHash
 	CodeInvalidSaltLength
 	CodeInvalidBase64Salt
+	CodeInvalidPage
+	CodeInvalidNameIn
+	CodeInvalidEmailIn
+	CodeInvalidIdIn
 )
 
 const (
@@ -55,6 +59,10 @@ const (
 	MessageIncompatiblePasswordHash string = "Provided password hash does not look like a valid sha256-encoded value."
 	MessageInvalidSaltLength        string = "Salt length should be at least the same length of the password hash."
 	MessageInvalidBase64Salt        string = "This doesn't look like a valid base64 value."
+	MessageInvalidPage              string = "Invalid page provided."
+	MessageInvalidNameIn            string = `Invalid "nameIn" filter provided.`
+	MessageInvalidEmailIn           string = `Invalid "emailIn" filter provided.`
+	MessageInvalidIdIn              string = `Invalid "idIn" filter provided.`
 
 	MessageUserNotFound        string = "No user was found with provided username or ID."
 	MessageInternalServerError string = "An error occurred while processing the request. Please try again later."
@@ -82,6 +90,10 @@ var (
 	ErrIncompatiblePasswordHash error = errors.New("incompatible password hash")
 	ErrInvalidSaltLength        error = errors.New("invalid salt length")
 	ErrInvalidBase64Salt        error = errors.New("invalid base64 salt")
+	ErrInvalidPage              error = errors.New("invalid page")
+	ErrInvalidNameIn            error = errors.New("invalid nameIn parameter provided")
+	ErrInvalidEmailIn           error = errors.New("invalid emailIn parameter provided")
+	ErrInvalidIdIn              error = errors.New("invalid idIn parameter provided")
 )
 
 // TODO: this should contain ranges
@@ -102,7 +114,12 @@ func ToHTTPStatusCode(code int) int {
 		CodeEmailTooLong,
 		CodeEmptyPasswordHash,
 		CodeIncompatiblePasswordHash,
-		CodeInvalidSaltLength:
+		CodeInvalidSaltLength,
+		CodeInvalidBase64Salt,
+		CodeInvalidPage,
+		CodeInvalidNameIn,
+		CodeInvalidEmailIn,
+		CodeInvalidIdIn:
 		return fiber.StatusBadRequest
 	case CodeUsernameAlreadyExists,
 		CodeEmailAlreadyExists:

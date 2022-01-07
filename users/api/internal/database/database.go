@@ -23,6 +23,7 @@ const (
 	bioMaxLength         int    = 300
 	emailMaxLength       int    = 200
 	usersTable           string = "users"
+	resultsPerPage       int    = 25
 )
 
 type Database struct {
@@ -50,7 +51,7 @@ func (c *Database) GetUserByUsername(username string) (*api.User, error) {
 	// TODO: support getting soft deleted users as well.
 	// TODO: get it from cache.
 
-	var user api.User
+	var user User
 	res := c.DB.Model(&User{}).Scopes(byUserName(username)).First(&user)
 	if res.Error != nil {
 		if errors.Is(res.Error, gorm.ErrRecordNotFound) {
@@ -68,7 +69,7 @@ func (c *Database) GetUserByUsername(username string) (*api.User, error) {
 		}
 	}
 
-	return &user, nil
+	return user.ToApiUser(), nil
 }
 
 func (c *Database) GetUserByID(id int64) (*api.User, error) {
@@ -79,7 +80,7 @@ func (c *Database) GetUserByID(id int64) (*api.User, error) {
 		}
 	}
 
-	var user api.User
+	var user User
 	res := c.DB.Model(&User{}).Scopes(byUserID(id)).First(&user)
 	if res.Error != nil {
 		if errors.Is(res.Error, gorm.ErrRecordNotFound) {
@@ -97,7 +98,7 @@ func (c *Database) GetUserByID(id int64) (*api.User, error) {
 		}
 	}
 
-	return &user, nil
+	return user.ToApiUser(), nil
 }
 
 func (c *Database) CreateUser(user *api.User) (*api.User, error) {
@@ -324,4 +325,51 @@ func (c *Database) CreateUser(user *api.User) (*api.User, error) {
 	user.RegistrationIP = nil
 
 	return user, nil
+}
+
+type ListFilters struct {
+	Page       *int
+	UsernameIn []string
+	EmailIn    []string
+	IDIn       []int64
+}
+
+func (c *Database) ListUsers(filters *ListFilters) ([]*api.User, error) {
+	query := c.DB
+	var users []*User
+
+	if filters != nil {
+		if filters.Page != nil && *filters.Page > 0 {
+			query = query.Offset((*filters.Page - 1) * resultsPerPage)
+		}
+
+		switch {
+		case len(filters.UsernameIn) > 0:
+			query = query.Where("username IN ?", filters.UsernameIn)
+		case len(filters.EmailIn) > 0:
+			query = query.Where("email IN ?", filters.EmailIn)
+		case len(filters.IDIn) > 0:
+			query = query.Where("id IN ?", filters.IDIn)
+		}
+	}
+
+	res := query.Limit(resultsPerPage).Model([]*User{}).Find(&users)
+	if res.Error != nil {
+		return nil, &uerrors.Error{
+			Code:    uerrors.CodeInternalServerError,
+			Message: uerrors.MessageInternalServerError,
+			Err:     res.Error,
+		}
+	}
+
+	if res.RowsAffected == 0 {
+		return []*api.User{}, nil
+	}
+
+	apiUsers := make([]*api.User, len(users))
+	for i := 0; i < len(users); i++ {
+		apiUsers[i] = users[i].ToApiUser()
+	}
+
+	return apiUsers, nil
 }
