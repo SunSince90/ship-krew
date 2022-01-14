@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"encoding/base64"
 	"errors"
-	"fmt"
 	"net/mail"
 	"regexp"
 	"strings"
@@ -386,7 +385,6 @@ func (c *Database) UpdateUser(id int64, newData *api.User) error {
 		res := c.DB.Model(&User{}).
 			Scopes(byUserName(newData.Username)).Count(&count)
 		if res.Error != nil {
-			fmt.Println(res.Error)
 			return &uerrors.Error{
 				Code:    uerrors.CodeInternalServerError,
 				Message: uerrors.MessageInternalServerError,
@@ -439,7 +437,6 @@ func (c *Database) UpdateUser(id int64, newData *api.User) error {
 		res := c.DB.Model(&User{}).
 			Scopes(byEmail(*newData.Email)).Count(&count)
 		if res.Error != nil {
-			fmt.Println(res.Error)
 			return &uerrors.Error{
 				Code:    uerrors.CodeInternalServerError,
 				Message: uerrors.MessageInternalServerError,
@@ -481,7 +478,6 @@ func (c *Database) UpdateUser(id int64, newData *api.User) error {
 		// If a new password is provided we generate a new salt as well
 		salt, err := GenerateRandomBytes(sha256.Size)
 		if err != nil {
-			fmt.Println(err)
 			return &uerrors.Error{
 				Code:    uerrors.CodeInternalServerError,
 				Message: uerrors.MessageInternalServerError,
@@ -511,6 +507,45 @@ func (c *Database) UpdateUser(id int64, newData *api.User) error {
 		Scopes(byUserID(id)).
 		Updates(colsToUpd)
 
+	if res.Error != nil {
+		return &uerrors.Error{
+			Code:    uerrors.CodeInternalServerError,
+			Message: uerrors.MessageInternalServerError,
+			Err:     res.Error,
+		}
+	}
+
+	return nil
+}
+
+func (c *Database) DeleteUser(id int64, hardDelete bool) error {
+	{
+		var count int64
+		res := c.DB.Model(&User{}).
+			Scopes(byUserID(id)).Count(&count)
+		if res.Error != nil {
+			return &uerrors.Error{
+				Code:    uerrors.CodeInternalServerError,
+				Message: uerrors.MessageInternalServerError,
+				Err:     uerrors.ErrInternalServerError,
+			}
+		}
+
+		if count == 0 {
+			return &uerrors.Error{
+				Code:    uerrors.CodeUserNotFound,
+				Message: uerrors.MessageUserNotFound,
+				Err:     uerrors.ErrUserNotFound,
+			}
+		}
+	}
+
+	op := c.DB
+	if hardDelete {
+		op = op.Unscoped()
+	}
+
+	res := op.Delete(&User{}, id)
 	if res.Error != nil {
 		return &uerrors.Error{
 			Code:    uerrors.CodeInternalServerError,

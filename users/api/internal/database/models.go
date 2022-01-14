@@ -34,7 +34,13 @@ func (u *User) ToApiUser() *api.User {
 		ID:        u.ID,
 		CreatedAt: u.CreatedAt,
 		UpdatedAt: &u.UpdatedAt,
-		DeletedAt: &u.DeletedAt.Time,
+		DeletedAt: func() *time.Time {
+			if u.DeletedAt.Valid {
+				return &u.DeletedAt.Time
+			}
+
+			return nil
+		}(),
 		Base64PasswordHash: func() *string {
 			if len(u.PasswordHash) == 0 {
 				return nil

@@ -304,6 +304,46 @@ func main() {
 		return c.SendStatus(fiber.StatusOK)
 	})
 
+	users.Delete("/:id", func(c *fiber.Ctx) error {
+		id := c.Params("id")
+
+		id, err := url.PathUnescape(id)
+		if err != nil || id == "" {
+			return c.
+				Status(fiber.StatusBadRequest).
+				JSON(&uerrors.Error{
+					Code:    uerrors.CodeInvalidUserID,
+					Message: uerrors.MessageInvalidUserID,
+				})
+		}
+
+		uid, err := strconv.ParseInt(id, 10, 64)
+		if err != nil {
+			return c.
+				Status(fiber.StatusBadRequest).
+				JSON(&uerrors.Error{
+					Code:    uerrors.CodeInvalidUserID,
+					Message: uerrors.MessageInvalidUserID,
+				})
+		}
+
+		hardDelete, err := url.QueryUnescape(strings.ToLower(c.Query("hard_delete", "false")))
+		if err != nil {
+			hardDelete = "false"
+		}
+
+		// TODO: check if user CAN hard delete
+		// TODO: check if user is admin or owner of this profile
+
+		if err = usersDB.DeleteUser(uid, hardDelete == "true"); err != nil {
+			return c.
+				Status(uerrors.ToHTTPStatusCode(err.(*uerrors.Error).Code)).
+				JSON(err)
+		}
+
+		return c.SendStatus(fiber.StatusGone)
+	})
+
 	go func() {
 		if err := app.Listen(":8080"); err != nil {
 			log.Err(err).Msg("error while listening")
