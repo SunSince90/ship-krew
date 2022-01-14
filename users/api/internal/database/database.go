@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/mail"
 	"regexp"
+	"strings"
 
 	"github.com/SunSince90/ship-krew/users/api/pkg/api"
 	uerrors "github.com/SunSince90/ship-krew/users/api/pkg/errors"
@@ -73,10 +74,11 @@ func (c *Database) GetUserByUsername(username string) (*api.User, error) {
 }
 
 func (c *Database) GetUserByID(id int64) (*api.User, error) {
-	if id == 0 {
+	if id < 1 {
 		return nil, &uerrors.Error{
 			Code:    uerrors.CodeInvalidUserID,
 			Message: uerrors.MessageInvalidUserID,
+			Err:     uerrors.ErrInvalidUserID,
 		}
 	}
 
@@ -130,7 +132,7 @@ func (c *Database) CreateUser(user *api.User) (*api.User, error) {
 	{
 		var count int64
 		res := c.DB.Scopes(byUserName(user.Username)).Count(&count)
-		if res.Error != nil && !errors.Is(res.Error, gorm.ErrRecordNotFound) {
+		if res.Error != nil {
 			return nil, &uerrors.Error{
 				Code:    uerrors.CodeInternalServerError,
 				Message: uerrors.MessageInternalServerError,
@@ -158,9 +160,9 @@ func (c *Database) CreateUser(user *api.User) (*api.User, error) {
 
 	if len(user.DisplayName) > maxDisplayNameLength {
 		return nil, &uerrors.Error{
-			Code:    uerrors.CodeEmptyDisplayName,
-			Message: uerrors.MessageEmptyDisplayName,
-			Err:     uerrors.ErrEmptyDisplayName,
+			Code:    uerrors.CodeDisplayNameTooLong,
+			Message: uerrors.MessageDisplayNameTooLong,
+			Err:     uerrors.ErrDisplayNameTooLong,
 		}
 	}
 	userToCreate.DisplayName = user.DisplayName
@@ -196,7 +198,7 @@ func (c *Database) CreateUser(user *api.User) (*api.User, error) {
 		)
 
 		res := c.DB.Scopes(byEmail(email)).Count(&count)
-		if res.Error != nil && !errors.Is(res.Error, gorm.ErrRecordNotFound) {
+		if res.Error != nil {
 			return nil, &uerrors.Error{
 				Code:    uerrors.CodeInternalServerError,
 				Message: uerrors.MessageInternalServerError,
@@ -243,43 +245,18 @@ func (c *Database) CreateUser(user *api.User) (*api.User, error) {
 		userToCreate.PasswordHash = password
 	}
 
-	{
-		var saltBytes []byte
-		if user.Base64Salt == nil {
-			salt, err := GenerateRandomBytes(sha256.Size)
-			if err != nil {
-				return nil, &uerrors.Error{
-					Code:    uerrors.CodeInternalServerError,
-					Message: uerrors.MessageInternalServerError,
-					Err:     err,
-				}
-			}
-			saltBytes = salt
-			saltString := base64.URLEncoding.EncodeToString(saltBytes)
-			user.Base64Salt = &saltString
-		} else {
-			salt, err := base64.URLEncoding.DecodeString(*user.Base64Salt)
-			if err != nil {
-				return nil, &uerrors.Error{
-					Code:    uerrors.CodeInvalidBase64Salt,
-					Message: uerrors.MessageInvalidBase64Salt,
-					Err:     err,
-				}
-			}
-
-			saltBytes = salt
+	salt, err := GenerateRandomBytes(sha256.Size)
+	if err != nil {
+		return nil, &uerrors.Error{
+			Code:    uerrors.CodeInternalServerError,
+			Message: uerrors.MessageInternalServerError,
+			Err:     err,
 		}
-
-		if len(saltBytes) < sha256.Size {
-			return nil, &uerrors.Error{
-				Code:    uerrors.CodeInvalidSaltLength,
-				Message: uerrors.MessageInvalidSaltLength,
-				Err:     uerrors.ErrInvalidSaltLength,
-			}
-		}
-
-		userToCreate.Salt = saltBytes
 	}
+
+	saltString := base64.URLEncoding.EncodeToString(salt)
+	user.Base64Salt = &saltString
+	userToCreate.Salt = salt
 
 	if user.RegistrationIP == nil || (user.RegistrationIP != nil && user.RegistrationIP.String() == "") {
 		return nil, &uerrors.Error{
@@ -308,7 +285,6 @@ func (c *Database) CreateUser(user *api.User) (*api.User, error) {
 
 	res := c.DB.Table(usersTable).Create(userToCreate)
 	if res.Error != nil {
-		fmt.Println(res.Error)
 		return nil, &uerrors.Error{
 			Code:    uerrors.CodeInternalServerError,
 			Message: uerrors.MessageInternalServerError,
@@ -372,4 +348,176 @@ func (c *Database) ListUsers(filters *ListFilters) ([]*api.User, error) {
 	}
 
 	return apiUsers, nil
+}
+
+func (c *Database) UpdateUser(id int64, newData *api.User) error {
+	if id < 1 {
+		return &uerrors.Error{
+			Code:    uerrors.CodeInvalidUserID,
+			Message: uerrors.MessageInvalidUserID,
+			Err:     uerrors.ErrInvalidUserID,
+		}
+	}
+	colsToUpd := map[string]interface{}{}
+
+	before, err := c.GetUserByID(id)
+	if err != nil {
+		return err
+	}
+
+	if newData.Username != "" &&
+		!strings.EqualFold(newData.Username, before.Username) {
+		if len(newData.Username) > maxUsernameLength {
+			return &uerrors.Error{
+				Code:    uerrors.CodeUsernameTooLong,
+				Message: uerrors.MessageUsernameTooLong,
+			}
+		}
+
+		if matched, err := regexp.MatchString(usernameRegexp, newData.Username); err != nil || !matched {
+			return &uerrors.Error{
+				Code:    uerrors.CodeInvalidUsername,
+				Message: uerrors.MessageInvalidUsername,
+				Err:     uerrors.ErrInvalidUsername,
+			}
+		}
+
+		var count int64
+		res := c.DB.Model(&User{}).
+			Scopes(byUserName(newData.Username)).Count(&count)
+		if res.Error != nil {
+			fmt.Println(res.Error)
+			return &uerrors.Error{
+				Code:    uerrors.CodeInternalServerError,
+				Message: uerrors.MessageInternalServerError,
+				Err:     uerrors.ErrInternalServerError,
+			}
+		}
+
+		if count > 0 {
+			return &uerrors.Error{
+				Code:    uerrors.CodeUsernameAlreadyExists,
+				Message: uerrors.MessageUsernameAlreadyExists,
+				Err:     uerrors.ErrUsernameAlreadyExists,
+			}
+		}
+
+		colsToUpd["username"] = newData.Username
+	}
+
+	if newData.DisplayName != "" && newData.DisplayName != before.Username {
+		if len(newData.DisplayName) > maxDisplayNameLength {
+			return &uerrors.Error{
+				Code:    uerrors.CodeEmptyDisplayName,
+				Message: uerrors.MessageEmptyDisplayName,
+				Err:     uerrors.ErrEmptyDisplayName,
+			}
+		}
+
+		colsToUpd["display_name"] = newData.DisplayName
+	}
+
+	if newData.Email != nil &&
+		!strings.EqualFold(*newData.Email, *before.Email) {
+		if len(*newData.Email) > emailMaxLength {
+			return &uerrors.Error{
+				Code:    uerrors.CodeEmailTooLong,
+				Message: uerrors.MessageEmailTooLong,
+				Err:     uerrors.ErrEmailTooLong,
+			}
+		}
+
+		if _, err := mail.ParseAddress(*newData.Email); err != nil {
+			return &uerrors.Error{
+				Code:    uerrors.CodeInvalidEmail,
+				Message: uerrors.MessageInvalidEmail,
+				Err:     uerrors.ErrInvalidEmail,
+			}
+		}
+
+		var count int64
+		res := c.DB.Model(&User{}).
+			Scopes(byEmail(*newData.Email)).Count(&count)
+		if res.Error != nil {
+			fmt.Println(res.Error)
+			return &uerrors.Error{
+				Code:    uerrors.CodeInternalServerError,
+				Message: uerrors.MessageInternalServerError,
+				Err:     uerrors.ErrInternalServerError,
+			}
+		}
+
+		if count > 0 {
+			return &uerrors.Error{
+				Code:    uerrors.CodeEmailAlreadyExists,
+				Message: uerrors.MessageEmailAlreadyExists,
+				Err:     uerrors.ErrEmailAlreadyExists,
+			}
+		}
+
+		colsToUpd["email"] = *newData.Email
+	}
+
+	if newData.Base64PasswordHash != nil {
+		password, err := base64.URLEncoding.DecodeString(*newData.Base64PasswordHash)
+		if err != nil {
+			return &uerrors.Error{
+				Code:    uerrors.CodeIncompatiblePasswordHash,
+				Message: uerrors.MessageIncompatiblePasswordHash,
+				Err:     uerrors.ErrIncompatiblePasswordHash,
+			}
+		}
+
+		if len(password) != sha256.Size {
+			return &uerrors.Error{
+				Code:    uerrors.CodeIncompatiblePasswordHash,
+				Message: uerrors.MessageIncompatiblePasswordHash,
+				Err:     uerrors.ErrIncompatiblePasswordHash,
+			}
+		}
+
+		colsToUpd["password_hash"] = password
+
+		// If a new password is provided we generate a new salt as well
+		salt, err := GenerateRandomBytes(sha256.Size)
+		if err != nil {
+			fmt.Println(err)
+			return &uerrors.Error{
+				Code:    uerrors.CodeInternalServerError,
+				Message: uerrors.MessageInternalServerError,
+				Err:     err,
+			}
+		}
+		colsToUpd["salt"] = salt
+	}
+
+	if newData.Bio != nil {
+		if len(*newData.Bio) > bioMaxLength {
+			return &uerrors.Error{
+				Code:    uerrors.CodeBioTooLong,
+				Message: uerrors.MessageBioTooLong,
+				Err:     uerrors.ErrBioTooLong,
+			}
+		}
+	}
+	colsToUpd["bio"] = newData.Bio
+	colsToUpd["birthday"] = newData.Birthday
+
+	if len(colsToUpd) == 0 {
+		return nil
+	}
+
+	res := c.DB.Model(&User{}).
+		Scopes(byUserID(id)).
+		Updates(colsToUpd)
+
+	if res.Error != nil {
+		return &uerrors.Error{
+			Code:    uerrors.CodeInternalServerError,
+			Message: uerrors.MessageInternalServerError,
+			Err:     res.Error,
+		}
+	}
+
+	return nil
 }

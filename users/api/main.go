@@ -244,6 +244,66 @@ func main() {
 			JSON(createdUser)
 	})
 
+	users.Put("/:id", func(c *fiber.Ctx) error {
+		c.Accepts(fiber.MIMEApplicationJSON)
+
+		var userToUpd api.User
+
+		if len(c.Body()) == 0 {
+			return c.
+				Status(fiber.StatusBadRequest).
+				JSON(&uerrors.Error{
+					Code:    uerrors.CodeEmptyBody,
+					Message: uerrors.MessageEmptyBody,
+				})
+		}
+
+		if err := json.Unmarshal(c.Body(), &userToUpd); err != nil {
+			return c.
+				Status(fiber.StatusBadRequest).
+				JSON(&uerrors.Error{
+					Code:    uerrors.CodeInvalidUserPost,
+					Message: fmt.Sprintf("%s %s", uerrors.MessageInvalidUserPost, err.Error()),
+				})
+		}
+
+		id := c.Params("id")
+
+		id, err := url.PathUnescape(id)
+		if err != nil || id == "" {
+			return c.
+				Status(fiber.StatusBadRequest).
+				JSON(&uerrors.Error{
+					Code:    uerrors.CodeInvalidUserID,
+					Message: uerrors.MessageInvalidUserID,
+				})
+		}
+
+		uid, err := strconv.ParseInt(id, 10, 64)
+		if err != nil {
+			return c.
+				Status(fiber.StatusBadRequest).
+				JSON(&uerrors.Error{
+					Code:    uerrors.CodeInvalidUserID,
+					Message: uerrors.MessageInvalidUserID,
+				})
+		}
+
+		if userToUpd.ID != uid {
+			// Just in case...
+			userToUpd.ID = uid
+		}
+
+		// TODO: check if user is admin or owner of this profile
+		if err = usersDB.UpdateUser(uid, &userToUpd); err != nil {
+			return c.
+				Status(uerrors.ToHTTPStatusCode(err.(*uerrors.Error).Code)).
+				JSON(err)
+		}
+
+		return c.SendStatus(fiber.StatusOK)
+	})
+
 	go func() {
 		if err := app.Listen(":8080"); err != nil {
 			log.Err(err).Msg("error while listening")

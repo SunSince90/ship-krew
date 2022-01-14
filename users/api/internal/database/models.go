@@ -11,8 +11,8 @@ import (
 )
 
 type User struct {
-	ID             int64 `gorm:"primarykey"`
-	CreatedAt      time.Time
+	ID             int64     `gorm:"primarykey;<-:create"`
+	CreatedAt      time.Time `gorm:"<-:create"`
 	UpdatedAt      time.Time
 	DeletedAt      gorm.DeletedAt `gorm:"index"`
 	PasswordHash   []byte
@@ -20,7 +20,7 @@ type User struct {
 	Username       string         `gorm:"unique;size:100"`
 	DisplayName    string         `gorm:"size:100"`
 	Email          string         `gorm:"unique;size:300"`
-	RegistrationIP string         `gorm:"size:20"`
+	RegistrationIP string         `gorm:"size:50;<-:create"`
 	Bio            sql.NullString `gorm:"unique;size:500"`
 	Birthday       sql.NullTime   `json:"birthday,omitempty" yaml:"birthday,omitempty"`
 }
