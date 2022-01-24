@@ -344,8 +344,32 @@ func main() {
 		return c.SendStatus(fiber.StatusGone)
 	})
 
+	internalEndpoints := fiber.New(fiber.Config{
+		AppName:               fiberAppName,
+		ReadTimeout:           time.Minute,
+		DisableStartupMessage: verbosity > 0,
+	})
+
+	internalEndpoints.Get("/readyz", func(c *fiber.Ctx) error {
+		if db != nil {
+			return c.SendStatus(fiber.StatusOK)
+		}
+
+		return c.SendStatus(fiber.StatusInternalServerError)
+	})
+
+	internalEndpoints.Get("/livez", func(c *fiber.Ctx) error {
+		return c.SendStatus(fiber.StatusOK)
+	})
+
 	go func() {
 		if err := app.Listen(":8080"); err != nil {
+			log.Err(err).Msg("error while listening")
+		}
+	}()
+
+	go func() {
+		if err := internalEndpoints.Listen(":8081"); err != nil {
 			log.Err(err).Msg("error while listening")
 		}
 	}()
@@ -358,6 +382,9 @@ func main() {
 
 	log.Info().Msg("shutting down...")
 	if err := app.Shutdown(); err != nil {
+		log.Err(err).Msg("error while waiting for server to shutdown")
+	}
+	if err := internalEndpoints.Shutdown(); err != nil {
 		log.Err(err).Msg("error while waiting for server to shutdown")
 	}
 	log.Info().Msg("goodbye!")
