@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"os"
 	"os/signal"
 	"time"
@@ -65,8 +66,12 @@ func main() {
 	})
 
 	app.Get("/u/:username", func(c *fiber.Ctx) error {
-		// TODO:
-		return c.SendStatus(fiber.StatusOK)
+		// TODO: get API users username
+
+		return c.Render("index", fiber.Map{
+			"Title":  fmt.Sprintf("Hello, %s!", c.Params("username")),
+			"Things": []Elems{{Color: "red", Val: "one"}, {Color: "blue", Val: "two"}},
+		})
 	})
 
 	go func() {
