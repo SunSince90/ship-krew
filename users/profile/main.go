@@ -74,6 +74,15 @@ func main() {
 		})
 	})
 
+	app.Get("/u/:username/edit", func(c *fiber.Ctx) error {
+		// TODO: get API users username
+
+		return c.Render("edit_profile", fiber.Map{
+			"DisplayName": "TODO",
+			"Username":    c.Params("username"),
+		})
+	})
+
 	go func() {
 		if err := app.Listen(":8080"); err != nil {
 			log.Err(err).Msg("error while listening")
