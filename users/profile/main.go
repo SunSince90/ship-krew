@@ -80,7 +80,14 @@ func main() {
 		return c.Render("edit_profile", fiber.Map{
 			"DisplayName": "TODO",
 			"Username":    c.Params("username"),
+			"Bio":         "TODO BIO",
 		})
+	})
+
+	app.Post("/u/:username/edit", func(c *fiber.Ctx) error {
+		// TODO: send to UPDATE api
+		// TODO: check if user can actually do this or leave this to api?
+		return c.SendString("editing")
 	})
 
 	go func() {
