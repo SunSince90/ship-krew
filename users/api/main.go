@@ -11,10 +11,10 @@ import (
 	"strings"
 	"time"
 
-	udb "github.com/SunSince90/ship-krew/users/api/internal/database"
-	"github.com/SunSince90/ship-krew/users/api/pkg/api"
-	"github.com/SunSince90/ship-krew/users/api/pkg/database"
-	uerrors "github.com/SunSince90/ship-krew/users/api/pkg/errors"
+	udb "github.com/asimpleidea/ship-krew/users/api/internal/database"
+	"github.com/asimpleidea/ship-krew/users/api/pkg/api"
+	"github.com/asimpleidea/ship-krew/users/api/pkg/database"
+	uerrors "github.com/asimpleidea/ship-krew/users/api/pkg/errors"
 	"github.com/gofiber/fiber/v2"
 	"github.com/rs/zerolog"
 )

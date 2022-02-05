@@ -9,8 +9,8 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/SunSince90/ship-krew/users/api/pkg/api"
-	uerrors "github.com/SunSince90/ship-krew/users/api/pkg/errors"
+	"github.com/asimpleidea/ship-krew/users/api/pkg/api"
+	uerrors "github.com/asimpleidea/ship-krew/users/api/pkg/errors"
 	"github.com/rs/zerolog"
 	"gorm.io/gorm"
 )

@@ -6,7 +6,7 @@ import (
 	"net"
 	"time"
 
-	"github.com/SunSince90/ship-krew/users/api/pkg/api"
+	"github.com/asimpleidea/ship-krew/users/api/pkg/api"
 	"gorm.io/gorm"
 )
 
