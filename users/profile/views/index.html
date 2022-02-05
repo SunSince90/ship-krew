@@ -2,6 +2,10 @@
 
 <h1>{{.Title}}</h1>
 
+<p>{{.User.Username}}</p>
+<p>{{.User.DisplayName}}</p>
+<a href="/{{.EditURL}}">Edit your profile</a>
+
 {{template "partials/list" .}}
 
 {{template "partials/footer" .}}

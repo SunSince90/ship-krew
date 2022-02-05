@@ -1,19 +1,25 @@
 package main
 
 import (
+	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
+	"net/http"
 	"os"
 	"os/signal"
+	"path"
 	"time"
 
+	"github.com/asimpleidea/ship-krew/users/api/pkg/api"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/template/html"
 	"github.com/rs/zerolog"
 )
 
 const (
-	fiberAppName string = "Profile Backend"
+	fiberAppName      string        = "Profile Backend"
+	defaultApiTimeout time.Duration = time.Minute
 )
 
 var (
@@ -66,21 +72,39 @@ func main() {
 	})
 
 	app.Get("/u/:username", func(c *fiber.Ctx) error {
-		// TODO: get API users username
+		// TODO: should username be sanitized?
+		ctx, canc := context.WithTimeout(context.Background(), defaultApiTimeout)
+		user, err := getUserByUsername(ctx, usersApiAddr, c.Params("username"))
+		if err != nil {
+			// TODO: parse the erorr and return an html of the error, not
+			// simple text.
+			canc()
+			return c.SendStatus(fiber.StatusInternalServerError)
+		}
+		canc()
 
 		return c.Render("index", fiber.Map{
-			"Title":  fmt.Sprintf("Hello, %s!", c.Params("username")),
-			"Things": []Elems{{Color: "red", Val: "one"}, {Color: "blue", Val: "two"}},
+			"Title": fmt.Sprintf("Hello, %s!", user.DisplayName),
+			// TODO: find a way to do this in a better way, maybe from template?
+			"EditURL": path.Join("u", user.Username, "edit"),
+			"User":    user,
 		})
 	})
 
 	app.Get("/u/:username/edit", func(c *fiber.Ctx) error {
 		// TODO: get API users username
+		ctx, canc := context.WithTimeout(context.Background(), defaultApiTimeout)
+		user, err := getUserByUsername(ctx, usersApiAddr, c.Params("username"))
+		if err != nil {
+			// TODO: parse the erorr and return an html of the error, not
+			// simple text.
+			canc()
+			return c.SendStatus(fiber.StatusInternalServerError)
+		}
+		canc()
 
 		return c.Render("edit_profile", fiber.Map{
-			"DisplayName": "TODO",
-			"Username":    c.Params("username"),
-			"Bio":         "TODO BIO",
+			"User": user,
 		})
 	})
 
@@ -106,4 +130,31 @@ func main() {
 		log.Err(err).Msg("error while waiting for server to shutdown")
 	}
 	log.Info().Msg("goodbye!")
+}
+
+// TODO: this must be integrated in the client
+func getUserByUsername(ctx context.Context, usersApiAddr, username string) (*api.User, error) {
+	req, err := http.NewRequestWithContext(ctx,
+		http.MethodGet,
+		fmt.Sprintf("%s/users/username/%s", usersApiAddr, username),
+		nil)
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO: use cookies in client?
+	cl := &http.Client{}
+	resp, err := cl.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	defer resp.Body.Close()
+
+	var user api.User
+	if err := json.NewDecoder(resp.Body).Decode(&user); err != nil {
+		return nil, err
+	}
+
+	return &user, nil
 }
