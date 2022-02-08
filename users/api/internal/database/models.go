@@ -63,7 +63,19 @@ func (u *User) ToApiUser() *api.User {
 			ip := net.ParseIP(u.RegistrationIP)
 			return &ip
 		}(),
-		Bio:      &u.Bio.String,
-		Birthday: &u.Birthday.Time,
+		Bio: func() *string {
+			if !u.Bio.Valid {
+				return nil
+			}
+
+			return &u.Bio.String
+		}(),
+		Birthday: func() *time.Time {
+			if !u.Birthday.Valid {
+				return nil
+			}
+
+			return &u.Birthday.Time
+		}(),
 	}
 }

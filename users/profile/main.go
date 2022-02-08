@@ -1,8 +1,10 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"net/http"
@@ -12,6 +14,7 @@ import (
 	"time"
 
 	"github.com/asimpleidea/ship-krew/users/api/pkg/api"
+	uerrors "github.com/asimpleidea/ship-krew/users/api/pkg/errors"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/template/html"
 	"github.com/rs/zerolog"
@@ -109,9 +112,75 @@ func main() {
 	})
 
 	app.Post("/u/:username/edit", func(c *fiber.Ctx) error {
-		// TODO: send to UPDATE api
-		// TODO: check if user can actually do this or leave this to api?
-		return c.SendString("editing")
+		// TODO:
+		// - Check if you can do this (OPA) or maybe let the API do this?
+		// - Handle case in which this is called via AJAX
+
+		ctx, canc := context.WithTimeout(context.Background(), defaultApiTimeout)
+		usr, err := getUserByUsername(ctx, usersApiAddr, c.Params("username"))
+		if err != nil {
+			// TODO: parse the error and return an html of the error, not
+			// simple text.
+			canc()
+			return c.SendStatus(fiber.StatusInternalServerError)
+		}
+		canc()
+
+		usrToUpdate := usr.Clone()
+
+		const (
+			formUsername    = "edit_username"
+			formDisplayName = "edit_display_name"
+			formBio         = "edit_bio"
+		)
+
+		{
+			// TODO:
+			// - validation and check for prohibited words
+			// - check from settings how many times you can change it in x days.
+			editedUsername := c.FormValue(formUsername)
+			if editedUsername != "" && editedUsername != usr.Username {
+				usrToUpdate.Username = editedUsername
+			}
+		}
+
+		{
+			// TODO:
+			// - validation and check for prohibited words
+			editedDisplayName := c.FormValue(formDisplayName)
+			if editedDisplayName != "" && editedDisplayName != usr.DisplayName {
+				usrToUpdate.DisplayName = editedDisplayName
+			}
+		}
+
+		{
+			// TODO:
+			// - validation
+			editedBio := c.FormValue(formBio)
+			if editedBio != "" {
+				if usrToUpdate.Bio == nil || (usrToUpdate.Bio != nil && editedBio != *usrToUpdate.Bio) {
+					usrToUpdate.Bio = &editedBio
+				}
+			}
+		}
+
+		ctx, canc = context.WithTimeout(context.Background(), defaultApiTimeout)
+		defer canc()
+		if err := updateUser(ctx, usersApiAddr, usrToUpdate); err != nil {
+			// TODO:
+			// - Parse the error and decide what to do
+			// - Send json if ajax or html if not
+			var e *uerrors.Error
+			if errors.As(err, &e) {
+				return c.Status(uerrors.ToHTTPStatusCode(e.Code)).
+					JSON(e)
+			}
+
+			return c.Status(fiber.StatusInternalServerError).
+				Send([]byte(err.Error()))
+		}
+
+		return c.SendStatus(fiber.StatusOK)
 	})
 
 	go func() {
@@ -157,4 +226,40 @@ func getUserByUsername(ctx context.Context, usersApiAddr, username string) (*api
 	}
 
 	return &user, nil
+}
+
+// TODO: this must be integrated in the client
+func updateUser(ctx context.Context, usersApiAddr string, user *api.User) error {
+	usrBody, err := json.Marshal(user)
+	if err != nil {
+		return err
+	}
+
+	req, err := http.NewRequestWithContext(ctx,
+		http.MethodPut,
+		fmt.Sprintf("%s/users/%d", usersApiAddr, user.ID),
+		bytes.NewReader(usrBody))
+	if err != nil {
+		return err
+	}
+
+	// TODO: use cookies in client?
+	cl := &http.Client{}
+	resp, err := cl.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	// TODO: handle errors better
+	if resp.StatusCode != fiber.StatusOK {
+		var oerr uerrors.Error
+		if err := json.NewDecoder(resp.Body).Decode(&err); err != nil {
+			return &oerr
+		}
+
+		return &oerr
+	}
+
+	return nil
 }

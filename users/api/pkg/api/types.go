@@ -27,3 +27,49 @@ type User struct {
 	Bio                *string    `json:"bio,omitempty" yaml:"bio,omitempty"`
 	Birthday           *time.Time `json:"birthday,omitempty" yaml:"birthday,omitempty"`
 }
+
+func (u *User) Clone() *User {
+	return &User{
+		ID:                 u.ID,
+		Base64PasswordHash: copyStringPointer(u.Base64PasswordHash),
+		Base64Salt:         copyStringPointer(u.Base64Salt),
+		CreatedAt:          u.CreatedAt,
+		UpdatedAt:          copyTimePointer(u.UpdatedAt),
+		DeletedAt:          copyTimePointer(u.DeletedAt),
+		Username:           u.Username,
+		DisplayName:        u.DisplayName,
+		Email:              copyStringPointer(u.Email),
+		RegistrationIP:     copyIpPointer(u.RegistrationIP),
+		Bio:                copyStringPointer(u.Bio),
+		Birthday:           copyTimePointer(u.Birthday),
+	}
+}
+
+// TODO: these need to be removed in future
+// TODO: maybe do this with reflect?
+func copyStringPointer(val *string) *string {
+	if val == nil {
+		return nil
+	}
+
+	copied := *val
+	return &copied
+}
+
+func copyTimePointer(val *time.Time) *time.Time {
+	if val == nil {
+		return nil
+	}
+
+	copied := *val
+	return &copied
+}
+
+func copyIpPointer(val *net.IP) *net.IP {
+	if val == nil {
+		return nil
+	}
+
+	copied := *val
+	return &copied
+}
