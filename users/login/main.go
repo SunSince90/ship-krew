@@ -9,6 +9,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"os/signal"
@@ -17,6 +18,7 @@ import (
 	"github.com/asimpleidea/ship-krew/users/api/pkg/api"
 	uerrors "github.com/asimpleidea/ship-krew/users/api/pkg/errors"
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/encryptcookie"
 	"github.com/gofiber/template/html"
 	"github.com/rs/zerolog"
 )
@@ -35,6 +37,7 @@ func main() {
 		verbosity    int
 		usersApiAddr string
 		timeout      time.Duration
+		cookieKey    string
 	)
 
 	flag.IntVar(&verbosity, "verbosity", 1, "the verbosity level")
@@ -42,6 +45,9 @@ func main() {
 	// TODO: https, not http
 	flag.StringVar(&usersApiAddr, "users-api-address", "http://users-api", "the address of the users server API")
 	flag.DurationVar(&timeout, "timeout", 2*time.Minute, "requests timeout")
+
+	// TODO: this should be pulled from secrets
+	flag.StringVar(&cookieKey, "cookie-key", "", "The key to un-encrypt cookies")
 	flag.Parse()
 
 	log = zerolog.New(os.Stderr).With().Logger()
@@ -52,6 +58,11 @@ func main() {
 		log = log.Level(logLevels[verbosity])
 	}
 
+	if cookieKey == "" {
+		log.Fatal().Err(errors.New("no cookie key set")).Msg("fatal error occurred")
+	}
+
+	// TODO: if not available should fail
 	engine := html.New("./views", ".html")
 
 	// TODO: authenticate to users server with APIKey
@@ -63,11 +74,21 @@ func main() {
 		Views:                 engine,
 	})
 
+	app.Use(encryptcookie.New(encryptcookie.Config{
+		Key: cookieKey,
+	}))
+
 	app.Get("/", func(c *fiber.Ctx) error {
+		val := "Login"
+		sessionID := c.Cookies("session", "")
+		if sessionID == "" {
+			val += " (you're not logged in)"
+		}
+
 		// TODO:
 		// - This must be called login
 		return c.Render("index", fiber.Map{
-			"Title": "Login",
+			"Title": val,
 		})
 	})
 
@@ -96,10 +117,17 @@ func main() {
 				return c.Status(uerrors.ToHTTPStatusCode(e.Code)).
 					JSON(e)
 			}
+
+			return c.Status(fiber.StatusBadRequest).SendString("not ok")
 		}
 		canc()
 
 		if passwordIsCorrect(pwd, usr.Base64PasswordHash, usr.Base64Salt) {
+			c.Cookie(&fiber.Cookie{
+				Name:  "session",
+				Value: "testing",
+			})
+
 			return c.Status(fiber.StatusOK).Send([]byte("ok"))
 		}
 
@@ -146,9 +174,34 @@ func getUserByUsername(ctx context.Context, usersApiAddr, username string) (*api
 
 	defer resp.Body.Close()
 
+	// TODO: better way to handle these internal server error
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, &uerrors.Error{
+			Code:    uerrors.CodeInternalServerError,
+			Message: uerrors.MessageInternalServerError,
+		}
+	}
+
+	if resp.StatusCode != fiber.StatusOK {
+		var e uerrors.Error
+		if err := json.Unmarshal(body, &e); err != nil {
+			return nil, &uerrors.Error{
+				Code:    uerrors.CodeInternalServerError,
+				Message: uerrors.MessageInternalServerError,
+			}
+		}
+
+		return nil, &e
+	}
+
 	var user api.User
-	if err := json.NewDecoder(resp.Body).Decode(&user); err != nil {
-		return nil, err
+	if err := json.Unmarshal(body, &user); err != nil {
+		return nil, &uerrors.Error{
+			Code:    uerrors.CodeInternalServerError,
+			Message: uerrors.MessageInternalServerError,
+		}
 	}
 
 	return &user, nil
@@ -162,5 +215,5 @@ func passwordIsCorrect(provided string, expected, salt *string) bool {
 	digestProvided := sha256.Sum256([]byte(provided))
 	passWithSalt := append(digestProvided[:], decodedSalt...)
 
-	return bytes.Compare(passWithSalt, decodedExpected) == 0
+	return bytes.Equal(passWithSalt, decodedExpected)
 }
