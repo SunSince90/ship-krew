@@ -130,7 +130,7 @@ func (c *Database) CreateUser(user *api.User) (*api.User, error) {
 
 	{
 		var count int64
-		res := c.DB.Scopes(byUserName(user.Username)).Count(&count)
+		res := c.DB.Model(&User{}).Scopes(byUserName(user.Username)).Count(&count)
 		if res.Error != nil {
 			return nil, &uerrors.Error{
 				Code:    uerrors.CodeInternalServerError,
@@ -196,7 +196,7 @@ func (c *Database) CreateUser(user *api.User) (*api.User, error) {
 			email string = *user.Email
 		)
 
-		res := c.DB.Scopes(byEmail(email)).Count(&count)
+		res := c.DB.Model(&User{}).Scopes(byEmail(email)).Count(&count)
 		if res.Error != nil {
 			return nil, &uerrors.Error{
 				Code:    uerrors.CodeInternalServerError,
@@ -216,6 +216,21 @@ func (c *Database) CreateUser(user *api.User) (*api.User, error) {
 	userToCreate.Email = *user.Email
 
 	{
+		salt, err := GenerateRandomBytes(sha256.Size)
+		if err != nil {
+			return nil, &uerrors.Error{
+				Code:    uerrors.CodeInternalServerError,
+				Message: uerrors.MessageInternalServerError,
+				Err:     err,
+			}
+		}
+
+		saltString := base64.URLEncoding.EncodeToString(salt)
+		user.Base64Salt = &saltString
+		userToCreate.Salt = salt
+	}
+
+	{
 		if user.Base64PasswordHash == nil {
 			return nil, &uerrors.Error{
 				Code:    uerrors.CodeEmptyPasswordHash,
@@ -233,29 +248,10 @@ func (c *Database) CreateUser(user *api.User) (*api.User, error) {
 			}
 		}
 
-		if len(password) != sha256.Size {
-			return nil, &uerrors.Error{
-				Code:    uerrors.CodeIncompatiblePasswordHash,
-				Message: uerrors.MessageIncompatiblePasswordHash,
-				Err:     uerrors.ErrIncompatiblePasswordHash,
-			}
-		}
-
+		// TODO: check this
+		password = append(password, userToCreate.Salt...)
 		userToCreate.PasswordHash = password
 	}
-
-	salt, err := GenerateRandomBytes(sha256.Size)
-	if err != nil {
-		return nil, &uerrors.Error{
-			Code:    uerrors.CodeInternalServerError,
-			Message: uerrors.MessageInternalServerError,
-			Err:     err,
-		}
-	}
-
-	saltString := base64.URLEncoding.EncodeToString(salt)
-	user.Base64Salt = &saltString
-	userToCreate.Salt = salt
 
 	if user.RegistrationIP == nil || (user.RegistrationIP != nil && user.RegistrationIP.String() == "") {
 		return nil, &uerrors.Error{
