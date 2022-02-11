@@ -86,6 +86,11 @@ func main() {
 		}
 
 		// TODO:
+		// - check if session exists on etcd
+		// - check if it corresponds to this user
+		// - check if not expired
+
+		// TODO:
 		// - This must be called login
 		return c.Render("index", fiber.Map{
 			"Title": val,
@@ -135,6 +140,24 @@ func main() {
 
 		return c.Status(fiber.StatusOK).
 			Send([]byte("does not match"))
+	})
+
+	app.Get("/logout", func(c *fiber.Ctx) error {
+		sessionID := c.Cookies("session", "")
+		if sessionID == "" {
+			// TODO: send not found html
+			return c.Status(fiber.StatusNotFound).SendString("not found")
+		}
+
+		// TODO:
+		// - check if session exists on etcd
+		// - check if it corresponds to this user
+		// - check if not expired
+
+		c.ClearCookie("session")
+
+		// TODO: redirect
+		return c.Status(fiber.StatusOK).SendString("ok")
 	})
 
 	go func() {
