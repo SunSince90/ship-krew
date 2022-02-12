@@ -225,7 +225,7 @@ func (c *Database) CreateUser(user *api.User) (*api.User, error) {
 			}
 		}
 
-		saltString := base64.URLEncoding.EncodeToString(salt)
+		saltString := base64.StdEncoding.EncodeToString(salt)
 		user.Base64Salt = &saltString
 		userToCreate.Salt = salt
 	}
@@ -239,7 +239,7 @@ func (c *Database) CreateUser(user *api.User) (*api.User, error) {
 			}
 		}
 
-		password, err := base64.URLEncoding.DecodeString(*user.Base64PasswordHash)
+		password, err := base64.StdEncoding.DecodeString(*user.Base64PasswordHash)
 		if err != nil {
 			return nil, &uerrors.Error{
 				Code:    uerrors.CodeIncompatiblePasswordHash,
@@ -452,7 +452,7 @@ func (c *Database) UpdateUser(id int64, newData *api.User) error {
 	}
 
 	if newData.Base64PasswordHash != nil {
-		password, err := base64.URLEncoding.DecodeString(*newData.Base64PasswordHash)
+		password, err := base64.StdEncoding.DecodeString(*newData.Base64PasswordHash)
 		if err != nil {
 			return &uerrors.Error{
 				Code:    uerrors.CodeIncompatiblePasswordHash,
