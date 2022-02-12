@@ -21,7 +21,13 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/encryptcookie"
 	"github.com/gofiber/template/html"
 	"github.com/rs/zerolog"
+	clientv3 "go.etcd.io/etcd/client/v3"
+	"go.etcd.io/etcd/client/v3/namespace"
+	"gopkg.in/yaml.v3"
 )
+
+// TODO: Follow https://stackoverflow.com/questions/244882/what-is-the-best-way-to-implement-remember-me-for-a-website
+// TODO: follow https://paragonie.com/blog/2015/04/secure-authentication-php-with-long-term-persistence#title.2
 
 const (
 	fiberAppName      string        = "Login Backend"
@@ -34,10 +40,11 @@ var (
 
 func main() {
 	var (
-		verbosity    int
-		usersApiAddr string
-		timeout      time.Duration
-		cookieKey    string
+		verbosity     int
+		usersApiAddr  string
+		timeout       time.Duration
+		cookieKey     string
+		etcdEndpoints string
 	)
 
 	flag.IntVar(&verbosity, "verbosity", 1, "the verbosity level")
@@ -48,6 +55,13 @@ func main() {
 
 	// TODO: this should be pulled from secrets
 	flag.StringVar(&cookieKey, "cookie-key", "", "The key to un-encrypt cookies")
+
+	// TODO:
+	// - this must be slices
+	// - use default
+	// - use secrets for authentication
+	flag.StringVar(&etcdEndpoints, "etcd-endpoints", "http://localhost:2379",
+		"Endpoints where to contact etcd.")
 	flag.Parse()
 
 	log = zerolog.New(os.Stderr).With().Logger()
@@ -61,6 +75,16 @@ func main() {
 	if cookieKey == "" {
 		log.Fatal().Err(errors.New("no cookie key set")).Msg("fatal error occurred")
 	}
+
+	cli, err := clientv3.New(clientv3.Config{
+		Endpoints:   []string{"localhost:2379"},
+		DialTimeout: 5 * time.Second,
+	})
+	if err != nil {
+		log.Fatal().Err(err).Msg("cloud not connect to etcd")
+	}
+	sessionsKV := namespace.NewKV(cli.KV, "sessions/")
+	defer cli.Close()
 
 	// TODO: if not available should fail
 	engine := html.New("./views", ".html")
@@ -79,10 +103,39 @@ func main() {
 	}))
 
 	app.Get("/", func(c *fiber.Ctx) error {
-		val := "Login"
-		sessionID := c.Cookies("session", "")
-		if sessionID == "" {
-			val += " (you're not logged in)"
+		// TODO: make this whole function better
+		ctx, canc := context.WithTimeout(context.Background(), defaultApiTimeout)
+		usrSession, sessionID, _ := getSessionFromEtcd(ctx, c, sessionsKV)
+		// TODO: check if error is from etcd, if so internal server error
+		// otherwise just login
+		canc()
+		if usrSession != nil {
+			if !usrSession.Expired() {
+				if usrSession.DaysTillExpiration() < 3 {
+					crCtx, crCanc := context.WithTimeout(context.Background(), defaultApiTimeout)
+					usrSession.Expiration = time.Now().AddDate(0, 0, 7)
+					err := createSessionOnEtcd(crCtx, sessionsKV, *sessionID, usrSession)
+					crCanc()
+					if err != nil {
+						log.Err(err).Str("session-id", *sessionID).
+							Int64("user-id", usrSession.UserID).
+							Msg("error while trying to update session")
+					}
+
+				}
+
+				return c.Status(fiber.StatusNotFound).SendString("already logged in")
+			}
+
+			func() {
+				delCtx, delCanc := context.WithTimeout(context.Background(), defaultApiTimeout)
+				defer delCanc()
+				if err := deleteSession(delCtx, c, sessionsKV, *sessionID); err != nil {
+					log.Err(err).Str("session-id", *sessionID).
+						Int64("user-id", usrSession.UserID).
+						Msg("error while trying to delete session")
+				}
+			}()
 		}
 
 		// TODO:
@@ -93,11 +146,44 @@ func main() {
 		// TODO:
 		// - This must be called login
 		return c.Render("index", fiber.Map{
-			"Title": val,
+			"Title": "Login",
 		})
 	})
 
 	app.Post("/", func(c *fiber.Ctx) error {
+		ctx, canc := context.WithTimeout(context.Background(), defaultApiTimeout)
+		usrSession, sessionID, _ := getSessionFromEtcd(ctx, c, sessionsKV)
+		// TODO: check if error is from etcd, if so internal server error
+		// otherwise just login
+		canc()
+		if usrSession != nil {
+			if !usrSession.Expired() {
+				if usrSession.DaysTillExpiration() < 3 {
+					crCtx, crCanc := context.WithTimeout(context.Background(), defaultApiTimeout)
+					usrSession.Expiration = time.Now().AddDate(0, 0, 7)
+					err := createSessionOnEtcd(crCtx, sessionsKV, *sessionID, usrSession)
+					crCanc()
+					if err != nil {
+						log.Err(err).Str("session-id", *sessionID).
+							Int64("user-id", usrSession.UserID).
+							Msg("error while trying to update session")
+					}
+				}
+
+				return c.Status(fiber.StatusNotFound).SendString("already logged in")
+			}
+
+			func() {
+				delCtx, delCanc := context.WithTimeout(context.Background(), defaultApiTimeout)
+				defer delCanc()
+				if err := deleteSession(delCtx, c, sessionsKV, *sessionID); err != nil {
+					log.Err(err).Str("session-id", *sessionID).
+						Int64("user-id", usrSession.UserID).
+						Msg("error while trying to delete session")
+				}
+			}()
+		}
+
 		// TODO:
 		// - validations
 		// - check if values are actually provided
@@ -110,7 +196,7 @@ func main() {
 		username := c.FormValue(formUsername)
 		pwd := c.FormValue(formPassword)
 
-		ctx, canc := context.WithTimeout(context.Background(), defaultApiTimeout)
+		ctx, canc = context.WithTimeout(context.Background(), defaultApiTimeout)
 		usr, err := getUserByUsername(ctx, usersApiAddr, username)
 		if err != nil {
 			canc()
@@ -128,10 +214,23 @@ func main() {
 		canc()
 
 		if passwordIsCorrect(pwd, usr.Base64PasswordHash, usr.Base64Salt) {
+			// TODO: generate a good session ID
+			sessionID := "testing"
 			c.Cookie(&fiber.Cookie{
 				Name:  "session",
-				Value: "testing",
+				Value: sessionID,
 			})
+
+			ctx, canc = context.WithTimeout(context.Background(), defaultApiTimeout)
+			defer canc()
+			if err := createSessionOnEtcd(ctx, sessionsKV, sessionID, &UserSession{
+				CreatedAt:  time.Now(),
+				UserID:     usr.ID,
+				Expiration: time.Now().AddDate(0, 0, 7),
+			}); err != nil {
+				return c.Status(fiber.StatusInternalServerError).
+					Send([]byte(err.Error()))
+			}
 
 			return c.Status(fiber.StatusOK).Send([]byte("ok"))
 		}
@@ -143,10 +242,13 @@ func main() {
 	})
 
 	app.Get("/logout", func(c *fiber.Ctx) error {
-		sessionID := c.Cookies("session", "")
-		if sessionID == "" {
-			// TODO: send not found html
-			return c.Status(fiber.StatusNotFound).SendString("not found")
+		ctx, canc := context.WithTimeout(context.Background(), defaultApiTimeout)
+		usrSession, sessID, _ := getSessionFromEtcd(ctx, c, sessionsKV)
+		canc()
+
+		if usrSession == nil {
+			return c.Status(fiber.StatusNotFound).
+				SendString("not logged int")
 		}
 
 		// TODO:
@@ -155,6 +257,14 @@ func main() {
 		// - check if not expired
 
 		c.ClearCookie("session")
+		ctx, canc = context.WithTimeout(context.Background(), defaultApiTimeout)
+		if _, err := sessionsKV.Delete(ctx, *sessID); err != nil {
+			log.Err(err).Str("session-id", *sessID).
+				Int64("user-id", usrSession.UserID).
+				Msg("error while trying to delete session")
+			canc()
+		}
+		canc()
 
 		// TODO: redirect
 		return c.Status(fiber.StatusOK).SendString("ok")
@@ -239,4 +349,77 @@ func passwordIsCorrect(provided string, expected, salt *string) bool {
 	passWithSalt := append(digestProvided[:], decodedSalt...)
 
 	return bytes.Equal(passWithSalt, decodedExpected)
+}
+
+type UserSession struct {
+	CreatedAt  time.Time `json:"created_at" yaml:"createdAt"`
+	UserID     int64     `json:"user_id" yaml:"userId"`
+	Expiration time.Time `json:"expiration" yaml:"expiration"`
+}
+
+func (u *UserSession) Expired() bool {
+	return time.Now().After(u.Expiration)
+}
+
+func (u *UserSession) DaysTillExpiration() int {
+	if u.Expired() {
+		return -1
+	}
+
+	return int(time.Until(u.Expiration).Hours() / 24)
+}
+
+func getSessionFromEtcd(ctx context.Context, fctx *fiber.Ctx, sessionsKV clientv3.KV) (*UserSession, *string, error) {
+	// TODO: not sure about bringing fctx here
+	sessionID := fctx.Cookies("session", "")
+	if sessionID == "" {
+		return nil, nil, nil
+	}
+
+	storedSess, err := sessionsKV.Get(ctx, sessionID)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if storedSess.Count == 0 {
+		return nil, nil, nil
+	}
+
+	if len(storedSess.Kvs) == 0 {
+		// TODO: better error
+		return nil, nil, fmt.Errorf("no keys found")
+	}
+
+	val := storedSess.Kvs[0].Value
+	var usrSession UserSession
+	if err := yaml.Unmarshal(val, &usrSession); err != nil {
+		return nil, nil, err
+	}
+
+	return &usrSession, &sessionID, nil
+}
+
+func createSessionOnEtcd(ctx context.Context, sessionKV clientv3.KV, sessionID string, usrSession *UserSession) error {
+	val, err := yaml.Marshal(usrSession)
+	if err != nil {
+		return err
+	}
+
+	_, err = sessionKV.Put(ctx, sessionID, string(val))
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func deleteSession(ctx context.Context, fctx *fiber.Ctx, sessionsKV clientv3.KV, sessionID string) error {
+	fctx.ClearCookie("session")
+
+	_, err := sessionsKV.Delete(ctx, sessionID)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
