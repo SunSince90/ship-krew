@@ -11,11 +11,12 @@ import (
 )
 
 type User struct {
-	ID             int64     `gorm:"primarykey;<-:create"`
-	CreatedAt      time.Time `gorm:"<-:create"`
-	UpdatedAt      time.Time
-	DeletedAt      gorm.DeletedAt `gorm:"index"`
-	PasswordHash   []byte
+	ID           int64     `gorm:"primarykey;<-:create"`
+	CreatedAt    time.Time `gorm:"<-:create"`
+	UpdatedAt    time.Time
+	DeletedAt    gorm.DeletedAt `gorm:"index"`
+	PasswordHash []byte
+	// TODO: salt must become readonly
 	Salt           []byte
 	Username       string         `gorm:"unique;size:100"`
 	DisplayName    string         `gorm:"size:100"`

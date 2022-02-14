@@ -10,9 +10,11 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"time"
 
 	"github.com/asimpleidea/ship-krew/users/api/pkg/api"
@@ -270,6 +272,111 @@ func main() {
 		return c.Status(fiber.StatusOK).SendString("ok")
 	})
 
+	app.Get("/signup", func(c *fiber.Ctx) error {
+		ctx, canc := context.WithTimeout(context.Background(), defaultApiTimeout)
+		usrSession, sessionID, _ := getSessionFromEtcd(ctx, c, sessionsKV)
+		canc()
+
+		if usrSession != nil {
+			if usrSession.Expired() {
+				func() {
+					delCtx, delCanc := context.WithTimeout(context.Background(), defaultApiTimeout)
+					defer delCanc()
+					if err := deleteSession(delCtx, c, sessionsKV, *sessionID); err != nil {
+						log.Err(err).Str("session-id", *sessionID).
+							Int64("user-id", usrSession.UserID).
+							Msg("error while trying to delete session")
+					}
+				}()
+			} else {
+				return c.Status(fiber.StatusNotFound).SendString("already logged in")
+			}
+		}
+
+		return c.Render("signup", fiber.Map{
+			"Title": "Signup",
+		})
+	})
+
+	app.Post("/signup", func(c *fiber.Ctx) error {
+		// TODO:
+		// - validate form values
+		// - check if email already exists
+
+		{
+			ctx, canc := context.WithTimeout(context.Background(), defaultApiTimeout)
+			usr, err := getUserByUsername(ctx, usersApiAddr, c.FormValue("signup_username"))
+			canc()
+			if err != nil {
+				var e *uerrors.Error
+				if errors.As(err, &e) && e.Code != uerrors.CodeUserNotFound {
+					// TODO:
+					// - html
+					// - better parsing
+					return c.Status(fiber.StatusInternalServerError).SendString(e.Error())
+				}
+			}
+			if usr != nil {
+				// TODO:
+				// is good code?
+				// html
+				return c.Status(fiber.StatusBadRequest).
+					SendString("a user with this username already exists")
+			}
+		}
+
+		{
+			if c.FormValue("signup_password") != c.FormValue("signup_confirm_password") {
+				return c.Status(fiber.StatusBadGateway).SendString("passwords do not match")
+			}
+		}
+
+		userToCreate := &api.User{
+			Username:    c.FormValue("signup_username"),
+			DisplayName: c.FormValue("signup_username"),
+			Email: func() *string {
+				email := c.FormValue("signup_email")
+				return &email
+			}(),
+			RegistrationIP: func() *net.IP {
+				// TODO: make this better
+				endpoint := c.Context().RemoteAddr().String()
+				colon := strings.Index(endpoint, ":")
+
+				ip := net.ParseIP(endpoint[0:colon])
+				return &ip
+			}(),
+		}
+
+		{
+			passBytes := bytes.NewBufferString(c.FormValue("signup_password")).Bytes()
+			// TODO: this should not use sha256!
+			passHash := sha256.Sum256(passBytes)
+			base64Pass := base64.StdEncoding.EncodeToString(passHash[:])
+			userToCreate.Base64PasswordHash = &base64Pass
+		}
+
+		{
+			ctx, canc := context.WithTimeout(context.Background(), defaultApiTimeout)
+			if err := createUser(ctx, usersApiAddr, userToCreate); err != nil {
+				canc()
+				var e *uerrors.Error
+				if errors.As(err, &e) {
+					// TODO:
+					// - html
+					// - better parsing
+					return c.Status(uerrors.ToHTTPStatusCode(e.Code)).
+						JSON(e)
+				}
+
+				return c.Status(fiber.StatusInternalServerError).SendString(e.Error())
+			}
+			canc()
+		}
+
+		return c.Status(fiber.StatusOK).SendString("ok")
+	})
+
 	go func() {
 		if err := app.Listen(":8080"); err != nil {
 			log.Err(err).Msg("error while listening")
@@ -338,6 +445,54 @@ func getUserByUsername(ctx context.Context, usersApiAddr, username string) (*api
 	}
 
 	return &user, nil
+}
+
+func createUser(ctx context.Context, usersApiAddr string, usr *api.User) error {
+	bodyToSend, err := json.Marshal(usr)
+	if err != nil {
+		return err
+	}
+
+	req, err := http.NewRequestWithContext(ctx,
+		http.MethodPost,
+		fmt.Sprintf("%s/users", usersApiAddr),
+		bytes.NewBuffer(bodyToSend))
+	if err != nil {
+		return err
+	}
+
+	// TODO: use cookies in client?
+	cl := &http.Client{}
+	resp, err := cl.Do(req)
+	if err != nil {
+		return err
+	}
+
+	defer resp.Body.Close()
+
+	// TODO: better way to handle these internal server error
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return &uerrors.Error{
+			Code:    uerrors.CodeInternalServerError,
+			Message: uerrors.MessageInternalServerError,
+		}
+	}
+
+	if resp.StatusCode >= 300 {
+		var e uerrors.Error
+		if err := json.Unmarshal(body, &e); err != nil {
+			return &uerrors.Error{
+				Code:    uerrors.CodeInternalServerError,
+				Message: uerrors.MessageInternalServerError,
+			}
+		}
+
+		return &e
+	}
+
+	return nil
 }
 
 // TODO: this may need to be better and maybe done on client

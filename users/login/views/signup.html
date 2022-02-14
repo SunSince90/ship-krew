@@ -1,0 +1,27 @@
+{{template "partials/header" .}}
+
+<h1>{{.Title}}</h1>
+
+<form method="POST">
+    <label for="username">Username:</label>
+    <input type="text" id="username" name="signup_username"><br><br>
+
+    <label for="email">email:</label>
+    <input type="email" id="email" name="signup_email"><br><br>
+
+    <label for="password">Password:</label>
+    <input type="password" id="password" name="signup_password"><br><br>
+
+    <label for="confirm_password">Confirm password:</label>
+    <input type="password" id="confirm_password" name="signup_confirm_password"><br><br>
+
+    <input type="submit" value="Submit">
+</form>
+
+<p>
+    <span>Already have an account?</span><a href="/login">Log in!</a>
+</p>
+
+{{template "partials/list" .}}
+
+{{template "partials/footer" .}}
