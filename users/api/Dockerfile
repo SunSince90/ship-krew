@@ -18,9 +18,9 @@ COPY internal/ internal/
 COPY pkg/ pkg/
 
 # Build, based on the architecture we want this to run.
-ENV ARCH=amd64
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=${ARCH} GO111MODULE=on \
-go build -a -o users-api main.go
+# Define GOOS=linux GOARCH=arch when building for a different architecture.
+# Usually this will be done by build-action-push on github.
+RUN CGO_ENABLED=0  GO111MODULE=on go build -a -o users-api main.go
 
 # Use distroless as minimal base image to package the binary.
 # Refer to https://github.com/GoogleContainerTools/distroless for more details.
