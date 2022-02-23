@@ -14,8 +14,6 @@ RUN go mod download
 
 # Copy the go source.
 COPY main.go main.go
-COPY internal/ internal/
-COPY pkg/ pkg/
 
 # Build, based on the architecture we want this to run.
 # Define GOOS=linux GOARCH=arch when building for a different architecture.
