@@ -1,0 +1,22 @@
+{{template "partials/header" .}}
+
+<h1>{{.Title}}</h1>
+
+<form method="POST">
+    <label for="username">Username:</label>
+    <input type="text" id="username" name="login_username"><br><br>
+
+    <label for="username">Password:</label>
+    <input type="password" id="password" name="login_password"><br><br>
+
+    <input type="submit" value="Submit">
+</form>
+
+<p>
+    <span>Don't have an account?</span><a href="/signup">Create one!</a>
+</p>
+
+<!-- TODO: this is going to be mounted: so don't use a relative path but absolute
+    TODO: maybe pass a global variable with the name of directory containing views? -->
+{{template "../../partials/list" .}}
+{{template "../../partials/footer" .}}
