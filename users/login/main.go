@@ -14,17 +14,17 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path"
 	"strings"
 	"time"
 
 	"github.com/asimpleidea/ship-krew/users/api/pkg/api"
 	uerrors "github.com/asimpleidea/ship-krew/users/api/pkg/errors"
+	"github.com/go-redis/redis/v8"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/encryptcookie"
 	"github.com/gofiber/template/html"
 	"github.com/rs/zerolog"
-	clientv3 "go.etcd.io/etcd/client/v3"
-	"go.etcd.io/etcd/client/v3/namespace"
 	"gopkg.in/yaml.v3"
 )
 
@@ -32,8 +32,9 @@ import (
 // TODO: follow https://paragonie.com/blog/2015/04/secure-authentication-php-with-long-term-persistence#title.2
 
 const (
-	fiberAppName      string        = "Login Backend"
-	defaultApiTimeout time.Duration = time.Minute
+	fiberAppName       string        = "Login Backend"
+	defaultApiTimeout  time.Duration = time.Minute
+	defaultPongTimeout time.Duration = 30 * time.Second
 )
 
 var (
@@ -46,7 +47,8 @@ func main() {
 		usersApiAddr  string
 		timeout       time.Duration
 		cookieKey     string
-		etcdEndpoints string
+		redisEndpoint string
+		redisPassword string
 	)
 
 	flag.IntVar(&verbosity, "verbosity", 1, "the verbosity level")
@@ -59,11 +61,14 @@ func main() {
 	flag.StringVar(&cookieKey, "cookie-key", "", "The key to un-encrypt cookies")
 
 	// TODO:
-	// - this must be slices
 	// - use default
 	// - use secrets for authentication
-	flag.StringVar(&etcdEndpoints, "etcd-endpoints", "http://localhost:2379",
-		"Endpoints where to contact etcd.")
+	// - what is a good default for this?
+	flag.StringVar(&redisEndpoint, "redis-endpoints", "http://localhost:6379",
+		"Endpoints where to contact redis.")
+	// TODO: this must be a certificate when stable.
+	flag.StringVar(&redisPassword, "redis-password", "",
+		"Authentication password for redis.")
 	flag.Parse()
 
 	log = zerolog.New(os.Stderr).With().Logger()
@@ -78,15 +83,28 @@ func main() {
 		log.Fatal().Err(errors.New("no cookie key set")).Msg("fatal error occurred")
 	}
 
-	cli, err := clientv3.New(clientv3.Config{
-		Endpoints:   []string{"localhost:2379"},
-		DialTimeout: 5 * time.Second,
+	// ------------------------------------
+	// Get the client from redis (for sessions)
+	// ------------------------------------
+
+	sessClient := redis.NewClient(&redis.Options{
+		Addr:     redisEndpoint,
+		Password: redisPassword,
+		// TODO: define the database from flags.
+		DB: 0,
 	})
-	if err != nil {
-		log.Fatal().Err(err).Msg("cloud not connect to etcd")
+	defer sessClient.Close()
+
+	if err := func() error {
+		ctx, canc := context.WithTimeout(context.TODO(), defaultPongTimeout)
+		defer canc()
+
+		_, err := sessClient.Ping(ctx).Result()
+		return err
+	}(); err != nil {
+		log.Fatal().Err(err).Msg("could not connect to redis")
+		return // unnecessary but for readability
 	}
-	sessionsKV := namespace.NewKV(cli.KV, "sessions/")
-	defer cli.Close()
 
 	// TODO: if not available should fail
 	engine := html.New("./views", ".html")
@@ -107,8 +125,8 @@ func main() {
 	app.Get("/", func(c *fiber.Ctx) error {
 		// TODO: make this whole function better
 		ctx, canc := context.WithTimeout(context.Background(), defaultApiTimeout)
-		usrSession, sessionID, _ := getSessionFromEtcd(ctx, c, sessionsKV)
-		// TODO: check if error is from etcd, if so internal server error
+		usrSession, sessionID, _ := getSessionFromRedis(ctx, c, sessClient)
+		// TODO: check if error is from redis, if so internal server error
 		// otherwise just login
 		canc()
 		if usrSession != nil {
@@ -116,7 +134,7 @@ func main() {
 				if usrSession.DaysTillExpiration() < 3 {
 					crCtx, crCanc := context.WithTimeout(context.Background(), defaultApiTimeout)
 					usrSession.Expiration = time.Now().AddDate(0, 0, 7)
-					err := createSessionOnEtcd(crCtx, sessionsKV, *sessionID, usrSession)
+					err := createSessionOnRedis(crCtx, sessClient, *sessionID, usrSession)
 					crCanc()
 					if err != nil {
 						log.Err(err).Str("session-id", *sessionID).
@@ -132,7 +150,7 @@ func main() {
 			func() {
 				delCtx, delCanc := context.WithTimeout(context.Background(), defaultApiTimeout)
 				defer delCanc()
-				if err := deleteSession(delCtx, c, sessionsKV, *sessionID); err != nil {
+				if err := deleteSession(delCtx, c, sessClient, *sessionID); err != nil {
 					log.Err(err).Str("session-id", *sessionID).
 						Int64("user-id", usrSession.UserID).
 						Msg("error while trying to delete session")
@@ -141,7 +159,7 @@ func main() {
 		}
 
 		// TODO:
-		// - check if session exists on etcd
+		// - check if session exists on Redis
 		// - check if it corresponds to this user
 		// - check if not expired
 
@@ -154,8 +172,8 @@ func main() {
 
 	app.Post("/", func(c *fiber.Ctx) error {
 		ctx, canc := context.WithTimeout(context.Background(), defaultApiTimeout)
-		usrSession, sessionID, _ := getSessionFromEtcd(ctx, c, sessionsKV)
-		// TODO: check if error is from etcd, if so internal server error
+		usrSession, sessionID, _ := getSessionFromRedis(ctx, c, sessClient)
+		// TODO: check if error is from Redis, if so internal server error
 		// otherwise just login
 		canc()
 		if usrSession != nil {
@@ -163,7 +181,7 @@ func main() {
 				if usrSession.DaysTillExpiration() < 3 {
 					crCtx, crCanc := context.WithTimeout(context.Background(), defaultApiTimeout)
 					usrSession.Expiration = time.Now().AddDate(0, 0, 7)
-					err := createSessionOnEtcd(crCtx, sessionsKV, *sessionID, usrSession)
+					err := createSessionOnRedis(crCtx, sessClient, *sessionID, usrSession)
 					crCanc()
 					if err != nil {
 						log.Err(err).Str("session-id", *sessionID).
@@ -178,7 +196,7 @@ func main() {
 			func() {
 				delCtx, delCanc := context.WithTimeout(context.Background(), defaultApiTimeout)
 				defer delCanc()
-				if err := deleteSession(delCtx, c, sessionsKV, *sessionID); err != nil {
+				if err := deleteSession(delCtx, c, sessClient, *sessionID); err != nil {
 					log.Err(err).Str("session-id", *sessionID).
 						Int64("user-id", usrSession.UserID).
 						Msg("error while trying to delete session")
@@ -225,7 +243,7 @@ func main() {
 
 			ctx, canc = context.WithTimeout(context.Background(), defaultApiTimeout)
 			defer canc()
-			if err := createSessionOnEtcd(ctx, sessionsKV, sessionID, &UserSession{
+			if err := createSessionOnRedis(ctx, sessClient, sessionID, &UserSession{
 				CreatedAt:  time.Now(),
 				UserID:     usr.ID,
 				Expiration: time.Now().AddDate(0, 0, 7),
@@ -245,7 +263,7 @@ func main() {
 
 	app.Get("/logout", func(c *fiber.Ctx) error {
 		ctx, canc := context.WithTimeout(context.Background(), defaultApiTimeout)
-		usrSession, sessID, _ := getSessionFromEtcd(ctx, c, sessionsKV)
+		usrSession, sessID, _ := getSessionFromRedis(ctx, c, sessClient)
 		canc()
 
 		if usrSession == nil {
@@ -254,13 +272,13 @@ func main() {
 		}
 
 		// TODO:
-		// - check if session exists on etcd
+		// - check if session exists on Redis
 		// - check if it corresponds to this user
 		// - check if not expired
 
 		c.ClearCookie("session")
 		ctx, canc = context.WithTimeout(context.Background(), defaultApiTimeout)
-		if _, err := sessionsKV.Delete(ctx, *sessID); err != nil {
+		if err := deleteSession(ctx, c, sessClient, *sessID); err != nil {
 			log.Err(err).Str("session-id", *sessID).
 				Int64("user-id", usrSession.UserID).
 				Msg("error while trying to delete session")
@@ -274,7 +292,7 @@ func main() {
 
 	app.Get("/signup", func(c *fiber.Ctx) error {
 		ctx, canc := context.WithTimeout(context.Background(), defaultApiTimeout)
-		usrSession, sessionID, _ := getSessionFromEtcd(ctx, c, sessionsKV)
+		usrSession, sessionID, _ := getSessionFromRedis(ctx, c, sessClient)
 		canc()
 
 		if usrSession != nil {
@@ -282,7 +300,7 @@ func main() {
 				func() {
 					delCtx, delCanc := context.WithTimeout(context.Background(), defaultApiTimeout)
 					defer delCanc()
-					if err := deleteSession(delCtx, c, sessionsKV, *sessionID); err != nil {
+					if err := deleteSession(delCtx, c, sessClient, *sessionID); err != nil {
 						log.Err(err).Str("session-id", *sessionID).
 							Int64("user-id", usrSession.UserID).
 							Msg("error while trying to delete session")
@@ -524,57 +542,43 @@ func (u *UserSession) DaysTillExpiration() int {
 	return int(time.Until(u.Expiration).Hours() / 24)
 }
 
-func getSessionFromEtcd(ctx context.Context, fctx *fiber.Ctx, sessionsKV clientv3.KV) (*UserSession, *string, error) {
+func getSessionFromRedis(ctx context.Context, fctx *fiber.Ctx, sessionsClient *redis.Client) (*UserSession, *string, error) {
 	// TODO: not sure about bringing fctx here
 	sessionID := fctx.Cookies("session", "")
 	if sessionID == "" {
 		return nil, nil, nil
 	}
 
-	storedSess, err := sessionsKV.Get(ctx, sessionID)
+	val, err := sessionsClient.Get(ctx, path.Join("sessions", sessionID)).Result()
 	if err != nil {
-		return nil, nil, err
+		if err == redis.Nil {
+			return nil, nil, nil
+		}
+
+		return nil, nil, fmt.Errorf("error while getting session key: %w", err)
 	}
 
-	if storedSess.Count == 0 {
-		return nil, nil, nil
-	}
-
-	if len(storedSess.Kvs) == 0 {
-		// TODO: better error
-		return nil, nil, fmt.Errorf("no keys found")
-	}
-
-	val := storedSess.Kvs[0].Value
 	var usrSession UserSession
-	if err := yaml.Unmarshal(val, &usrSession); err != nil {
-		return nil, nil, err
+	if err := yaml.NewDecoder(strings.NewReader(val)).Decode(&usrSession); err != nil {
+		return nil, nil, fmt.Errorf("error while unmarshalling value from value: %w", err)
 	}
 
 	return &usrSession, &sessionID, nil
 }
 
-func createSessionOnEtcd(ctx context.Context, sessionKV clientv3.KV, sessionID string, usrSession *UserSession) error {
+func createSessionOnRedis(ctx context.Context, sessionClient *redis.Client, sessionID string, usrSession *UserSession) error {
 	val, err := yaml.Marshal(usrSession)
 	if err != nil {
-		return err
+		return fmt.Errorf("could not marshal data: %w", err)
 	}
 
-	_, err = sessionKV.Put(ctx, sessionID, string(val))
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return sessionClient.
+		Set(ctx, path.Join("sessions", sessionID), &val, time.Until(usrSession.Expiration)).
+		Err()
 }
 
-func deleteSession(ctx context.Context, fctx *fiber.Ctx, sessionsKV clientv3.KV, sessionID string) error {
+func deleteSession(ctx context.Context, fctx *fiber.Ctx, sessionClient *redis.Client, sessionID string) error {
 	fctx.ClearCookie("session")
 
-	_, err := sessionsKV.Delete(ctx, sessionID)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return sessionClient.Del(ctx, path.Join("sessions", sessionID)).Err()
 }
