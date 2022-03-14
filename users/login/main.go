@@ -32,9 +32,10 @@ import (
 // TODO: follow https://paragonie.com/blog/2015/04/secure-authentication-php-with-long-term-persistence#title.2
 
 const (
-	fiberAppName       string        = "Login Backend"
-	defaultApiTimeout  time.Duration = time.Minute
-	defaultPongTimeout time.Duration = 30 * time.Second
+	fiberAppName          string        = "Login Backend"
+	defaultApiTimeout     time.Duration = time.Minute
+	defaultPongTimeout    time.Duration = 30 * time.Second
+	defaultViewsDirectory string        = "/views"
 )
 
 var (
@@ -43,12 +44,13 @@ var (
 
 func main() {
 	var (
-		verbosity     int
-		usersApiAddr  string
-		timeout       time.Duration
-		cookieKey     string
-		redisEndpoint string
-		redisPassword string
+		verbosity      int
+		usersApiAddr   string
+		timeout        time.Duration
+		cookieKey      string
+		redisEndpoint  string
+		redisPassword  string
+		viewsDirectory string
 	)
 
 	flag.IntVar(&verbosity, "verbosity", 1, "the verbosity level")
@@ -69,6 +71,9 @@ func main() {
 	// TODO: this must be a certificate when stable.
 	flag.StringVar(&redisPassword, "redis-password", "",
 		"Authentication password for redis.")
+
+	flag.StringVar(&viewsDirectory, "views-directory", defaultViewsDirectory,
+		"Root directory containing views.")
 	flag.Parse()
 
 	log = zerolog.New(os.Stderr).With().Logger()
@@ -107,7 +112,7 @@ func main() {
 	}
 
 	// TODO: if not available should fail
-	engine := html.New("./views", ".html")
+	engine := html.New(viewsDirectory, ".html")
 
 	// TODO: authenticate to users server with APIKey
 
