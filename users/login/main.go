@@ -112,7 +112,7 @@ func main() {
 	}
 
 	// TODO: if not available should fail
-	engine := html.New(viewsDirectory, ".html")
+	engine := html.New(path.Join(viewsDirectory, "public"), ".html")
 
 	// TODO: authenticate to users server with APIKey
 

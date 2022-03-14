@@ -21,8 +21,9 @@ import (
 )
 
 const (
-	fiberAppName      string        = "Profile Backend"
-	defaultApiTimeout time.Duration = time.Minute
+	fiberAppName          string        = "Profile Backend"
+	defaultApiTimeout     time.Duration = time.Minute
+	defaultViewsDirectory string        = "/views"
 )
 
 var (
@@ -36,9 +37,10 @@ type Elems struct {
 
 func main() {
 	var (
-		verbosity    int
-		usersApiAddr string
-		timeout      time.Duration
+		verbosity      int
+		usersApiAddr   string
+		timeout        time.Duration
+		viewsDirectory string
 	)
 
 	flag.IntVar(&verbosity, "verbosity", 1, "the verbosity level")
@@ -46,6 +48,8 @@ func main() {
 	// TODO: https, not http
 	flag.StringVar(&usersApiAddr, "users-api-address", "http://users-api", "the address of the users server API")
 	flag.DurationVar(&timeout, "timeout", 2*time.Minute, "requests timeout")
+	flag.StringVar(&viewsDirectory, "views-directory", defaultViewsDirectory,
+		"Directory containing views.")
 	flag.Parse()
 
 	log = zerolog.New(os.Stderr).With().Logger()
@@ -56,7 +60,7 @@ func main() {
 		log = log.Level(logLevels[verbosity])
 	}
 
-	engine := html.New("./views", ".html")
+	engine := html.New(path.Join(viewsDirectory, "public"), ".html")
 
 	// TODO: authenticate to users server with APIKey
 
@@ -183,6 +187,7 @@ func main() {
 		return c.SendStatus(fiber.StatusOK)
 	})
 
+	// TODO: only do readiness probe.
 	go func() {
 		if err := app.Listen(":8080"); err != nil {
 			log.Err(err).Msg("error while listening")
