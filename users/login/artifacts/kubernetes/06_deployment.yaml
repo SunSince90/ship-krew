@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: login
+  namespace: ship-krew-backend
+  labels:
+    app: users
+    module: login
+    project: ship-krew
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: users
+      module: login
+      project: ship-krew
+  template:
+    metadata:
+      labels:
+        app: users
+        module: login
+        project: ship-krew
+    spec:
+      containers:
+      - name: login
+        image: ghcr.io/asimpleidea/ship-krew-users-login:v0.3.0
+        imagePullPolicy: Always
+        args:
+        - "--verbosity=$(VERBOSITY)"
+        - "--users-api-address=$(USERS_API_ADDRESS)"
+        - "--timeout=$(TIMEOUT)"
+        - "--cookie-key=$(COOKIES_KEY)"
+        - "--redis-endpoints=$(REDIS_ADDRESS)"
+        - "--redis-password=$(REDIS_PASSWORD)"
+        - "--views-directory=$(VIEWS_DIRECTORY)"
+        volumeMounts:
+        - mountPath: /views
+          name: views
+        env:
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: redis-credentials
+              key: password
+        - name: COOKIES_KEY
+          valueFrom:
+            secretKeyRef:
+              name: cookies-key
+              key: key
+        envFrom:
+        - configMapRef:
+            name: login-backend-options
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 65532
+      volumes:
+      - name: views
+        persistentVolumeClaim:
+          claimName: users-login-views
