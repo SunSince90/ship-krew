@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: profile
+  namespace: ship-krew-backend
+  labels:
+    app: users
+    module: profile
+    project: ship-krew
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: users
+      module: profile
+      project: ship-krew
+  template:
+    metadata:
+      labels:
+        app: users
+        module: profile
+        project: ship-krew
+    spec:
+      containers:
+      - name: profile
+        image: ghcr.io/asimpleidea/ship-krew-users-profile:v0.3.0
+        imagePullPolicy: Always
+        args:
+        - "--verbosity=$(VERBOSITY)"
+        - "--users-api-address=$(USERS_API_ADDRESS)"
+        - "--timeout=$(TIMEOUT)"
+        - "--views-directory=$(VIEWS_DIRECTORY)"
+        volumeMounts:
+        - mountPath: /views
+          name: views
+        envFrom:
+        - configMapRef:
+            name: profile-backend-options
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 65532
+      volumes:
+      - name: views
+        persistentVolumeClaim:
+          claimName: users-profile-views
