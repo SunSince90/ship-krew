@@ -113,7 +113,7 @@ func main() {
 	}
 
 	viewsDir := path.Join(viewsDirectory, "public")
-	appViews = path.Join(viewsDir, "apps", "login")
+	appViews = path.Join("apps", "login")
 
 	// TODO: if not available should fail
 	engine := html.New(viewsDir, ".html")
