@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: profile-backend-options
+  namespace: ship-krew-backend
+data:
+  TIMEOUT: "2m"
+  USERS_API_ADDRESS: http://users-api.ship-krew-api
+  VERBOSITY: "1"
+  REDIS_ADDRESS: sessions-database-redis-master.ship-krew-database:6379
+  VIEWS_DIRECTORY: "/views"
