@@ -51,6 +51,7 @@ func main() {
 		redisEndpoint  string
 		redisPassword  string
 		viewsDirectory string
+		appViews       string
 	)
 
 	flag.IntVar(&verbosity, "verbosity", 1, "the verbosity level")
@@ -111,8 +112,11 @@ func main() {
 		return // unnecessary but for readability
 	}
 
+	viewsDir := path.Join(viewsDirectory, "public")
+	appViews = path.Join(viewsDir, "apps", "login")
+
 	// TODO: if not available should fail
-	engine := html.New(path.Join(viewsDirectory, "public"), ".html")
+	engine := html.New(viewsDir, ".html")
 
 	// TODO: authenticate to users server with APIKey
 
@@ -170,7 +174,7 @@ func main() {
 
 		// TODO:
 		// - This must be called login
-		return c.Render("index", fiber.Map{
+		return c.Render(path.Join(appViews, "index"), fiber.Map{
 			"Title": "Login",
 		})
 	})
@@ -316,7 +320,7 @@ func main() {
 			}
 		}
 
-		return c.Render("signup", fiber.Map{
+		return c.Render(path.Join(appViews, "signup"), fiber.Map{
 			"Title": "Signup",
 		})
 	})
