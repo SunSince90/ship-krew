@@ -41,6 +41,7 @@ func main() {
 		usersApiAddr   string
 		timeout        time.Duration
 		viewsDirectory string
+		appViews       string
 	)
 
 	flag.IntVar(&verbosity, "verbosity", 1, "the verbosity level")
@@ -60,7 +61,11 @@ func main() {
 		log = log.Level(logLevels[verbosity])
 	}
 
-	engine := html.New(path.Join(viewsDirectory, "public"), ".html")
+	viewsDir := path.Join(viewsDirectory, "public")
+	appViews = path.Join(viewsDir, "apps", "profile")
+
+	// TODO: if not available should fail
+	engine := html.New(viewsDir, ".html")
 
 	// TODO: authenticate to users server with APIKey
 
@@ -72,7 +77,7 @@ func main() {
 	})
 
 	app.Get("/", func(c *fiber.Ctx) error {
-		return c.Render("index", fiber.Map{
+		return c.Render(path.Join(appViews, "index"), fiber.Map{
 			"Title":  "Hello, World!",
 			"Things": []Elems{{Color: "red", Val: "one"}, {Color: "blue", Val: "two"}},
 		})
@@ -90,7 +95,7 @@ func main() {
 		}
 		canc()
 
-		return c.Render("index", fiber.Map{
+		return c.Render(path.Join(appViews, "index"), fiber.Map{
 			"Title": fmt.Sprintf("Hello, %s!", user.DisplayName),
 			// TODO: find a way to do this in a better way, maybe from template?
 			"EditURL": path.Join("u", user.Username, "edit"),
@@ -110,7 +115,7 @@ func main() {
 		}
 		canc()
 
-		return c.Render("edit_profile", fiber.Map{
+		return c.Render(path.Join(appViews, "edit_profile"), fiber.Map{
 			"User": user,
 		})
 	})
