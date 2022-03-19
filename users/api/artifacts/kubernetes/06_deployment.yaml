@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: users-api
+  namespace: ship-krew-api
+  labels:
+    app: users
+    module: api
+    project: ship-krew
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: users
+      module: api
+      project: ship-krew
+  template:
+    metadata:
+      labels:
+        app: users
+        module: api
+        project: ship-krew
+    spec:
+      containers:
+      - name: api
+        image: ghcr.io/asimpleidea/ship-krew-users-api:v0.3.0
+        imagePullPolicy: Always
+        args:
+        - "--verbosity=$(VERBOSITY)"
+        - "--database-name=$(DATABASE_NAME)"
+        - "--database-user=$(DATABASE_USER)"
+        - "--database-password=$(DATABASE_PASSWORD)"
+        - "--database-address=$(DATABASE_ADDRESS)"
+        - "--database-port=$(DATABASE_PORT)"
+        - "--database-charset=$(DATABASE_CHARSET)"
+        - "--database-readtimeout=$(DATABASE_READ_TIMEOUT)"
+        - "--database-writetimeout=$(DATABASE_WRITE_TIMEOUT)"
+        env:
+        - name: DATABASE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: users-database-credentials
+              key: password
+        - name: DATABASE_USER
+          valueFrom:
+            secretKeyRef:
+              name: users-database-credentials
+              key: user
+        envFrom:
+        - configMapRef:
+            name: users-api-options
+        - configMapRef:
+            name: users-database
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 65532

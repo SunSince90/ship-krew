@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: users-api-options
+  namespace: ship-krew-api
+data:
+  VERBOSITY: "1"
