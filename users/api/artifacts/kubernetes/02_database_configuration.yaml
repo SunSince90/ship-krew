@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: users-database
+  namespace: ship-krew-api
+data:
+  # TODO: this many need a different name
+  DATABASE_NAME: "community"
+  DATABASE_ADDRESS: main-database-mysql.ship-krew-database
+  DATABASE_PORT: "3306"
+  DATABASE_CHARSET: "utf8mb4"
+  DATABASE_READ_TIMEOUT: "1m"
+  DATABASE_WRITE_TIMEOUT: "1m"
