@@ -131,7 +131,7 @@ func main() {
 		Key: cookieKey,
 	}))
 
-	app.Get("/", func(c *fiber.Ctx) error {
+	app.Get("/login", func(c *fiber.Ctx) error {
 		// TODO: make this whole function better
 		ctx, canc := context.WithTimeout(context.Background(), defaultApiTimeout)
 		usrSession, sessionID, _ := getSessionFromRedis(ctx, c, sessClient)
@@ -179,7 +179,7 @@ func main() {
 		})
 	})
 
-	app.Post("/", func(c *fiber.Ctx) error {
+	app.Post("/login", func(c *fiber.Ctx) error {
 		ctx, canc := context.WithTimeout(context.Background(), defaultApiTimeout)
 		usrSession, sessionID, _ := getSessionFromRedis(ctx, c, sessClient)
 		// TODO: check if error is from Redis, if so internal server error
