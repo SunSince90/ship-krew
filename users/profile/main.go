@@ -76,14 +76,7 @@ func main() {
 		Views:                 engine,
 	})
 
-	app.Get("/", func(c *fiber.Ctx) error {
-		return c.Render(path.Join(appViews, "index"), fiber.Map{
-			"Title":  "Hello, World!",
-			"Things": []Elems{{Color: "red", Val: "one"}, {Color: "blue", Val: "two"}},
-		})
-	})
-
-	app.Get("/u/:username", func(c *fiber.Ctx) error {
+	app.Get("/profiles/:username", func(c *fiber.Ctx) error {
 		// TODO: should username be sanitized?
 		ctx, canc := context.WithTimeout(context.Background(), defaultApiTimeout)
 		user, err := getUserByUsername(ctx, usersApiAddr, c.Params("username"))
@@ -103,7 +96,7 @@ func main() {
 		})
 	})
 
-	app.Get("/u/:username/edit", func(c *fiber.Ctx) error {
+	app.Get("/profiles/:username/edit", func(c *fiber.Ctx) error {
 		// TODO: get API users username
 		ctx, canc := context.WithTimeout(context.Background(), defaultApiTimeout)
 		user, err := getUserByUsername(ctx, usersApiAddr, c.Params("username"))
@@ -120,7 +113,7 @@ func main() {
 		})
 	})
 
-	app.Post("/u/:username/edit", func(c *fiber.Ctx) error {
+	app.Post("/profiles/:username/edit", func(c *fiber.Ctx) error {
 		// TODO:
 		// - Check if you can do this (OPA) or maybe let the API do this?
 		// - Handle case in which this is called via AJAX
