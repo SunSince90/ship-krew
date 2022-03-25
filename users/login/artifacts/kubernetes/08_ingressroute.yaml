@@ -1,0 +1,27 @@
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  # TODO: in future this may be splitted in multiple files
+  name: login
+  namespace: ship-krew-backend
+spec:
+  entryPoints:
+  # TODO: should be secure
+  - web
+  routes:
+  - kind: Rule
+    match: "Host(`example.com`) && Path(`/login`, `/signup`)"
+    priority: 10
+    services:
+    - kind: Service
+      name: login
+      namespace: ship-krew-backend
+      passHostHeader: true
+      port: 80
+      sticky:
+        cookie:
+          httpOnly: true
+          name: session
+          # TODO: enable these
+          # secure: true
+          # sameSite: none
