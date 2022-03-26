@@ -23,7 +23,7 @@ spec:
       sticky:
         cookie:
           httpOnly: true
-          name: session
+          name: ingr
 ---
 apiVersion: traefik.containo.us/v1alpha1
 kind: Middleware
