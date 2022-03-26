@@ -243,6 +243,7 @@ func main() {
 		canc()
 
 		if passwordIsCorrect(pwd, usr.Base64PasswordHash, usr.Base64Salt) {
+			fmt.Println("password is correct")
 			// TODO: generate a good session ID
 			sessionID := "testing"
 			c.Cookie(&fiber.Cookie{
@@ -582,7 +583,7 @@ func createSessionOnRedis(ctx context.Context, sessionClient *redis.Client, sess
 	}
 
 	return sessionClient.
-		Set(ctx, path.Join("sessions", sessionID), &val, time.Until(usrSession.Expiration)).
+		Set(ctx, path.Join("sessions", sessionID), val, time.Until(usrSession.Expiration)).
 		Err()
 }
 
