@@ -10,7 +10,7 @@ spec:
   - web
   routes:
   - kind: Rule
-    match: "Host(`example.com`) && Path(`/login`, `/signup`)"
+    match: "Host(`cacca.com`) && Path(`/login`, `/signup`)"
     priority: 10
     services:
     - kind: Service
@@ -21,7 +21,7 @@ spec:
       sticky:
         cookie:
           httpOnly: true
-          name: session
+          name: ingr
           # TODO: enable these
           # secure: true
           # sameSite: none
