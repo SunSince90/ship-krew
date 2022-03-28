@@ -1,6 +1,6 @@
 module github.com/asimpleidea/ship-krew/users/profile
 
-go 1.17
+go 1.18
 
 require (
 	github.com/asimpleidea/ship-krew/users/api v0.0.0-20220222211327-c2417d7570da
