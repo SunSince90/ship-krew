@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/asimpleidea/ship-krew/users/pb;pb";
+
+message User {
+    int32 id = 1;
+    string username = 2;
+    string display_name = 3;
+    string email = 4;
+    google.protobuf.Timestamp joined = 5;
+    string bio = 6;
+    string birthdate = 7;
+}
+
+message GetUserRequest {
+    string id = 1;
+    string username = 2;
+}
+
+message PutUserReply {
+}
+
+service Users {
+    rpc GetUser (GetUserRequest) returns (User) {};
+    rpc PutUser (User) returns (PutUserReply) {};
+}
