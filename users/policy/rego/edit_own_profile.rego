@@ -13,6 +13,7 @@ default edit_username = false
 allowed = true {
 	not input.subject.is_banned
     input.actor.user_id == input.subject.user_id
+    "deleted_at" not in input.subject
 }
 
 # Can edit own username if:
