@@ -8,6 +8,7 @@ import (
 	"os/signal"
 	"time"
 
+	"github.com/gofiber/fiber/v2"
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/rego"
 	"github.com/open-policy-agent/opa/util"
@@ -18,6 +19,7 @@ const (
 	defaultRegoDirectory string        = "/rego"
 	defaultApiTimeout    time.Duration = time.Minute
 	defaultPongTimeout   time.Duration = 30 * time.Second
+	fiberAppName         string        = "users-policy"
 )
 
 var (
@@ -57,19 +59,78 @@ func main() {
 		return
 	}
 
-	// TODO: use the verifier
-	_ = ver
-
 	// --------------------------------------------
 	// Start the gRPC server
 	// --------------------------------------------
 
-	// TODO...
+	app := fiber.New(fiber.Config{
+		AppName:               fiberAppName,
+		ReadTimeout:           time.Minute,
+		DisableStartupMessage: verbosity > 0,
+	})
+
+	app.Post("/settings/permissions", func(c *fiber.Ctx) error {
+		vctx, vcanc := context.WithTimeout(ctx, 10*time.Second)
+		defer vcanc()
+
+		res, err := ver.verifySettingsPermissions(vctx, c.Body())
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).
+				SendString(err.Error())
+		}
+
+		if len(res) == 0 {
+			return c.Status(fiber.StatusInternalServerError).
+				SendString(fmt.Errorf("no results set").Error())
+		}
+
+		// TODO: can this return more than one result? or multiple expressions?
+		if len(res[0].Expressions) == 0 {
+			return c.Status(fiber.StatusInternalServerError).
+				SendString(fmt.Errorf("no results set").Error())
+		}
+
+		return c.Status(fiber.StatusOK).JSON(res[0].Expressions[0].Value)
+	})
+
+	internalEndpoints := fiber.New(fiber.Config{
+		AppName:               fiberAppName,
+		ReadTimeout:           time.Minute,
+		DisableStartupMessage: verbosity > 0,
+	})
+
+	// TODO: have startup probe
+
+	internalEndpoints.Get("/readyz", func(c *fiber.Ctx) error {
+		return c.SendStatus(fiber.StatusOK)
+	})
+
+	internalEndpoints.Get("/livez", func(c *fiber.Ctx) error {
+		return c.SendStatus(fiber.StatusOK)
+	})
+
+	go func() {
+		if err := app.Listen(":8080"); err != nil {
+			log.Err(err).Msg("error while listening")
+		}
+	}()
+
+	go func() {
+		if err := internalEndpoints.Listen(":8081"); err != nil {
+			log.Err(err).Msg("error while listening")
+		}
+	}()
 
 	// Graceful Shutdown
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt)
 	<-stop
+	if err := app.Shutdown(); err != nil {
+		log.Err(err).Msg("could not successfully shutdown server")
+	}
+	if err := internalEndpoints.Shutdown(); err != nil {
+		log.Err(err).Msg("could not successfully shutdown internal server")
+	}
 	canc()
 
 	log.Info().Msg("shutting down...")
