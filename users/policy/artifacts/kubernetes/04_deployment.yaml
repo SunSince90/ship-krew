@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: users-policy
+  namespace: ship-krew-backend
+  labels:
+    app: users
+    module: policy
+    project: ship-krew
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: users
+      module: policy
+      project: ship-krew
+  template:
+    metadata:
+      labels:
+        app: users
+        module: policy
+        project: ship-krew
+    spec:
+      containers:
+      - name: policy
+        image: ghcr.io/asimpleidea/ship-krew-users-policy:testing-policy
+        imagePullPolicy: Always
+        args:
+        - "--verbosity=$(VERBOSITY)"
+        - "--rego-directory=$(REGO_DIRECTORY)"
+        volumeMounts:
+        - mountPath: /rego
+          name: rego
+        envFrom:
+        - configMapRef:
+            name: users-policy-settings
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 65532
+      volumes:
+      - name: rego
+        persistentVolumeClaim:
+          claimName: users-policy-rego
