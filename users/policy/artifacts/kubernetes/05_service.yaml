@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: users
+    module: policy
+    project: ship-krew
+  name: policy
+  namespace: ship-krew-backend
+spec:
+  ports:
+  - port: 80
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app: users
+    module: policy
+    project: ship-krew
+  sessionAffinity: None
+  type: ClusterIP
