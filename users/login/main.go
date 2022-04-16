@@ -447,6 +447,7 @@ func getUserByUsername(ctx context.Context, usersApiAddr, username string) (*api
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return nil, &uerrors.Error{
+			Err:     uerrors.ErrInternalServerError,
 			Code:    uerrors.CodeInternalServerError,
 			Message: uerrors.MessageInternalServerError,
 		}
@@ -456,6 +457,7 @@ func getUserByUsername(ctx context.Context, usersApiAddr, username string) (*api
 		var e uerrors.Error
 		if err := json.Unmarshal(body, &e); err != nil {
 			return nil, &uerrors.Error{
+				Err:     uerrors.ErrInternalServerError,
 				Code:    uerrors.CodeInternalServerError,
 				Message: uerrors.MessageInternalServerError,
 			}
@@ -467,6 +469,7 @@ func getUserByUsername(ctx context.Context, usersApiAddr, username string) (*api
 	var user api.User
 	if err := json.Unmarshal(body, &user); err != nil {
 		return nil, &uerrors.Error{
+			Err:     uerrors.ErrInternalServerError,
 			Code:    uerrors.CodeInternalServerError,
 			Message: uerrors.MessageInternalServerError,
 		}
@@ -503,6 +506,7 @@ func createUser(ctx context.Context, usersApiAddr string, usr *api.User) error {
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return &uerrors.Error{
+			Err:     uerrors.ErrInternalServerError,
 			Code:    uerrors.CodeInternalServerError,
 			Message: uerrors.MessageInternalServerError,
 		}
@@ -512,6 +516,7 @@ func createUser(ctx context.Context, usersApiAddr string, usr *api.User) error {
 		var e uerrors.Error
 		if err := json.Unmarshal(body, &e); err != nil {
 			return &uerrors.Error{
+				Err:     uerrors.ErrInternalServerError,
 				Code:    uerrors.CodeInternalServerError,
 				Message: uerrors.MessageInternalServerError,
 			}
