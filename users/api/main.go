@@ -157,6 +157,7 @@ func main() {
 			return c.
 				Status(fiber.StatusBadRequest).
 				JSON(&uerrors.Error{
+					Err:     uerrors.ErrInvalidUsername,
 					Code:    uerrors.CodeInvalidUsername,
 					Message: uerrors.MessageInvalidUsername,
 				})
@@ -182,6 +183,7 @@ func main() {
 			return c.
 				Status(fiber.StatusBadRequest).
 				JSON(&uerrors.Error{
+					Err:     uerrors.ErrInvalidUserID,
 					Code:    uerrors.CodeInvalidUserID,
 					Message: uerrors.MessageInvalidUserID,
 				})
@@ -192,6 +194,7 @@ func main() {
 			return c.
 				Status(fiber.StatusBadRequest).
 				JSON(&uerrors.Error{
+					Err:     uerrors.ErrInvalidUserID,
 					Code:    uerrors.CodeInvalidUserID,
 					Message: uerrors.MessageInvalidUserID,
 				})
@@ -218,6 +221,7 @@ func main() {
 			return c.
 				Status(fiber.StatusBadRequest).
 				JSON(&uerrors.Error{
+					Err:     uerrors.ErrEmptyBody,
 					Code:    uerrors.CodeEmptyBody,
 					Message: uerrors.MessageEmptyBody,
 				})
@@ -227,6 +231,8 @@ func main() {
 			return c.
 				Status(fiber.StatusBadRequest).
 				JSON(&uerrors.Error{
+					// TODO: check this err
+					Err:     fmt.Errorf("invalid user post body"),
 					Code:    uerrors.CodeInvalidUserPost,
 					Message: fmt.Sprintf("%s %s", uerrors.MessageInvalidUserPost, err.Error()),
 				})
@@ -253,6 +259,7 @@ func main() {
 			return c.
 				Status(fiber.StatusBadRequest).
 				JSON(&uerrors.Error{
+					Err:     uerrors.ErrEmptyBody,
 					Code:    uerrors.CodeEmptyBody,
 					Message: uerrors.MessageEmptyBody,
 				})
@@ -262,6 +269,7 @@ func main() {
 			return c.
 				Status(fiber.StatusBadRequest).
 				JSON(&uerrors.Error{
+					Err:     fmt.Errorf("invalid user post body"),
 					Code:    uerrors.CodeInvalidUserPost,
 					Message: fmt.Sprintf("%s %s", uerrors.MessageInvalidUserPost, err.Error()),
 				})
@@ -274,6 +282,7 @@ func main() {
 			return c.
 				Status(fiber.StatusBadRequest).
 				JSON(&uerrors.Error{
+					Err:     uerrors.ErrInvalidUserID,
 					Code:    uerrors.CodeInvalidUserID,
 					Message: uerrors.MessageInvalidUserID,
 				})
@@ -284,6 +293,7 @@ func main() {
 			return c.
 				Status(fiber.StatusBadRequest).
 				JSON(&uerrors.Error{
+					Err:     uerrors.ErrInvalidUserID,
 					Code:    uerrors.CodeInvalidUserID,
 					Message: uerrors.MessageInvalidUserID,
 				})
@@ -312,6 +322,7 @@ func main() {
 			return c.
 				Status(fiber.StatusBadRequest).
 				JSON(&uerrors.Error{
+					Err:     uerrors.ErrInvalidUserID,
 					Code:    uerrors.CodeInvalidUserID,
 					Message: uerrors.MessageInvalidUserID,
 				})
@@ -322,6 +333,7 @@ func main() {
 			return c.
 				Status(fiber.StatusBadRequest).
 				JSON(&uerrors.Error{
+					Err:     uerrors.ErrInvalidUserID,
 					Code:    uerrors.CodeInvalidUserID,
 					Message: uerrors.MessageInvalidUserID,
 				})

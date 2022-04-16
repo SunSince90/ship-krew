@@ -115,6 +115,7 @@ func (c *Database) CreateUser(user *api.User) (*api.User, error) {
 
 	if len(user.Username) > maxUsernameLength {
 		return nil, &uerrors.Error{
+			Err:     uerrors.ErrInvalidUsername,
 			Code:    uerrors.CodeUsernameTooLong,
 			Message: uerrors.MessageUsernameTooLong,
 		}
@@ -364,6 +365,7 @@ func (c *Database) UpdateUser(id int64, newData *api.User) error {
 		!strings.EqualFold(newData.Username, before.Username) {
 		if len(newData.Username) > maxUsernameLength {
 			return &uerrors.Error{
+				Err:     uerrors.ErrInvalidUsername,
 				Code:    uerrors.CodeUsernameTooLong,
 				Message: uerrors.MessageUsernameTooLong,
 			}
