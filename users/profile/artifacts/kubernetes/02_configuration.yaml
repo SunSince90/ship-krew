@@ -6,6 +6,7 @@ metadata:
 data:
   TIMEOUT: "2m"
   USERS_API_ADDRESS: http://users-api.ship-krew-api
-  VERBOSITY: "1"
+  USERS_POLICY_ADDRESS: http://users-policy
+  VERBOSITY: "0"
   REDIS_ADDRESS: sessions-database-redis-master.ship-krew-database:6379
   VIEWS_DIRECTORY: "/views"
