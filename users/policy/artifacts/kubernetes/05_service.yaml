@@ -5,7 +5,7 @@ metadata:
     app: users
     module: policy
     project: ship-krew
-  name: policy
+  name: users-policy
   namespace: ship-krew-backend
 spec:
   ports:
