@@ -8,6 +8,7 @@ import (
 	"os/signal"
 	"time"
 
+	"github.com/asimpleidea/ship-krew/users/policy/pkg/types"
 	"github.com/gofiber/fiber/v2"
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/rego"
@@ -73,24 +74,18 @@ func main() {
 		vctx, vcanc := context.WithTimeout(ctx, 10*time.Second)
 		defer vcanc()
 
-		res, err := ver.verifySettingsPermissions(vctx, c.Body())
+		perms, err := ver.verifySettingsPermissions(vctx, c.Body())
 		if err != nil {
 			return c.Status(fiber.StatusInternalServerError).
 				SendString(err.Error())
 		}
-
-		if len(res) == 0 {
+		if err != nil {
+			// TODO: better errors
 			return c.Status(fiber.StatusInternalServerError).
-				SendString(fmt.Errorf("no results set").Error())
+				SendString("could not decode permissions")
 		}
 
-		// TODO: can this return more than one result? or multiple expressions?
-		if len(res[0].Expressions) == 0 {
-			return c.Status(fiber.StatusInternalServerError).
-				SendString(fmt.Errorf("no results set").Error())
-		}
-
-		return c.Status(fiber.StatusOK).JSON(res[0].Expressions[0].Value)
+		return c.Status(fiber.StatusOK).JSON(perms)
 	})
 
 	internalEndpoints := fiber.New(fiber.Config{
@@ -178,7 +173,13 @@ func newVerifier(mainCtx context.Context, regoPath string) (*verifier, error) {
 	}, nil
 }
 
-func (v *verifier) verifySettingsPermissions(ctx context.Context, data []byte) (rego.ResultSet, error) {
+func (v *verifier) verifySettingsPermissions(ctx context.Context, data []byte) (*types.UserSettingsPermissions, error) {
+	const (
+		notAllowedChangeSettings string = "not_allowed_change_settings"
+		cantChangeDOB            string = "cant_change_dob"
+		cantChangeUsername       string = "cant_change_username"
+	)
+
 	var input interface{}
 	if err := util.Unmarshal(data, &input); err != nil {
 		return nil, fmt.Errorf("unable to parse input: %w", err)
@@ -189,5 +190,43 @@ func (v *verifier) verifySettingsPermissions(ctx context.Context, data []byte) (
 		return nil, fmt.Errorf("unable to process input: %w", err)
 	}
 
-	return v.settingsPermissions.Eval(ctx, rego.EvalParsedInput(inputValue))
+	result, err := v.settingsPermissions.Eval(ctx, rego.EvalParsedInput(inputValue))
+	if err != nil {
+		return nil, fmt.Errorf("cannot check permissions: %w", err)
+	}
+
+	if len(result) == 0 {
+		return nil, fmt.Errorf("no results set")
+	}
+
+	// TODO: can this return more than one result? or multiple expressions?
+	if len(result[0].Expressions) == 0 {
+		return nil, fmt.Errorf("no expressions found")
+	}
+
+	expressions := result[0].Expressions[0].Value.(map[string]interface{})
+	reasons := map[string][]string{}
+	for key, _val := range expressions {
+		valReasons := []string{}
+		val := _val.([]interface{})
+		for _, r := range val {
+			valReasons = append(valReasons, r.(string))
+		}
+		reasons[key] = valReasons
+	}
+
+	return &types.UserSettingsPermissions{
+		CanModifyOwnProfile: types.Permission{
+			Allowed: len(reasons[notAllowedChangeSettings]) == 0,
+			Reasons: reasons[notAllowedChangeSettings],
+		},
+		CanChangeUsername: types.Permission{
+			Allowed: len(reasons[cantChangeUsername]) == 0,
+			Reasons: reasons[cantChangeUsername],
+		},
+		CanChangeDOB: types.Permission{
+			Allowed: len(reasons[cantChangeDOB]) == 0,
+			Reasons: reasons[cantChangeDOB],
+		},
+	}, nil
 }
