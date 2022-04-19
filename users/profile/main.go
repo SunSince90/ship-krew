@@ -15,6 +15,7 @@ import (
 
 	"github.com/asimpleidea/ship-krew/users/api/pkg/api"
 	uerrors "github.com/asimpleidea/ship-krew/users/api/pkg/errors"
+	upoltypes "github.com/asimpleidea/ship-krew/users/policy/pkg/types"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/template/html"
 	"github.com/rs/zerolog"
@@ -39,6 +40,7 @@ func main() {
 	var (
 		verbosity      int
 		usersApiAddr   string
+		usersPolAddr   string
 		timeout        time.Duration
 		viewsDirectory string
 		appViews       string
@@ -48,6 +50,7 @@ func main() {
 
 	// TODO: https, not http
 	flag.StringVar(&usersApiAddr, "users-api-address", "http://users-api", "the address of the users server API")
+	flag.StringVar(&usersPolAddr, "users-pol-address", "http://users-policy", "the address of the users policy server")
 	flag.DurationVar(&timeout, "timeout", 2*time.Minute, "requests timeout")
 	flag.StringVar(&viewsDirectory, "views-directory", defaultViewsDirectory,
 		"Directory containing views.")
@@ -84,15 +87,25 @@ func main() {
 			// TODO: parse the erorr and return an html of the error, not
 			// simple text.
 			canc()
-			return c.SendStatus(fiber.StatusInternalServerError)
+			return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
+		}
+		canc()
+
+		// Get their permissions
+		ctx, canc = context.WithTimeout(context.Background(), defaultApiTimeout)
+		uperm, err := getUserPermissions(ctx, user, usersPolAddr)
+		if err != nil {
+			canc()
+			return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
 		}
 		canc()
 
 		return c.Render(path.Join(appViews, "index"), fiber.Map{
 			"Title": fmt.Sprintf("Hello, %s!", user.DisplayName),
 			// TODO: find a way to do this in a better way, maybe from template?
-			"EditURL": path.Join("u", user.Username, "edit"),
-			"User":    user,
+			"Permissions": uperm,
+			"EditURL":     path.Join("u", user.Username, "edit"),
+			"User":        user,
 		})
 	})
 
@@ -104,9 +117,23 @@ func main() {
 			// TODO: parse the erorr and return an html of the error, not
 			// simple text.
 			canc()
-			return c.SendStatus(fiber.StatusInternalServerError)
+			return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
 		}
 		canc()
+
+		// Get their permissions
+		ctx, canc = context.WithTimeout(context.Background(), defaultApiTimeout)
+		uperm, err := getUserPermissions(ctx, user, usersPolAddr)
+		if err != nil {
+			canc()
+			return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
+		}
+		canc()
+
+		if !uperm.CanChangeUsername.Allowed {
+			// Return an error view
+			return c.Status(fiber.StatusForbidden).SendString("cannot update your profile")
+		}
 
 		return c.Render(path.Join(appViews, "edit_profile"), fiber.Map{
 			"User": user,
@@ -124,9 +151,23 @@ func main() {
 			// TODO: parse the error and return an html of the error, not
 			// simple text.
 			canc()
-			return c.SendStatus(fiber.StatusInternalServerError)
+			return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
 		}
 		canc()
+
+		// Get their permissions
+		ctx, canc = context.WithTimeout(context.Background(), defaultApiTimeout)
+		uperm, err := getUserPermissions(ctx, usr, usersPolAddr)
+		if err != nil {
+			canc()
+			return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
+		}
+		canc()
+
+		if !uperm.CanChangeUsername.Allowed {
+			// Return an error view
+			return c.Status(fiber.StatusForbidden).SendString("cannot update your profile")
+		}
 
 		usrToUpdate := usr.Clone()
 
@@ -265,4 +306,71 @@ func updateUser(ctx context.Context, usersApiAddr string, user *api.User) error 
 	}
 
 	return nil
+}
+
+// TODO: this is temporary, if this is going to become stable I will send
+// the user struct.
+type userCheckPermissions struct {
+	IsBanned      bool          `json:"is_banned"`
+	UserID        int64         `json:"user_id"`
+	Username      string        `json:"username"`
+	DOB           time.Time     `json:"dob,omitempty"`
+	UpdateHistory updateHistory `json:"update_history"`
+}
+
+type updateHistory struct {
+	Usernames []*userUpdateChange `json:"usernames,omitempty"`
+	DOBs      []*userUpdateChange `json:"dobs,omitempty"`
+}
+
+type userUpdateChange struct {
+	NewValue      string    `json:"new_value"`
+	PreviousValue string    `json:"previous_value"`
+	Time          time.Time `json:"time"`
+}
+
+// TODO: change the names. This contains just the things they cannot do and
+// the reasons for them.
+type userPermissionsDenied struct {
+	NotAllowedChangeSettings []string `json:"not_allowed_change_settings"`
+	CantChangeUsername       []string `json:"cant_change_username"`
+	CantChangeDOB            []string `json:"cant_change_dob"`
+}
+
+func getUserPermissions(ctx context.Context, user *api.User, addr string) (*upoltypes.UserSettingsPermissions, error) {
+	checkPermissions := &userCheckPermissions{
+		IsBanned:      false,
+		UserID:        user.ID,
+		Username:      user.Username,
+		UpdateHistory: updateHistory{},
+	}
+
+	reqBody, err := json.Marshal(checkPermissions)
+	if err != nil {
+		return nil, fmt.Errorf("could not marshal request body: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx,
+		http.MethodPost,
+		fmt.Sprintf("%s/settings/permissions", addr),
+		bytes.NewReader(reqBody))
+	if err != nil {
+		return nil, fmt.Errorf("could not create request: %w", err)
+	}
+
+	// TODO: use cookies in client?
+	cl := &http.Client{}
+	resp, err := cl.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("could not do request: %w", err)
+	}
+
+	defer resp.Body.Close()
+
+	var up upoltypes.UserSettingsPermissions
+	if err := json.NewDecoder(resp.Body).Decode(&up); err != nil {
+		return nil, fmt.Errorf("could unmarshal response body: %w", err)
+	}
+
+	return &up, nil
 }
