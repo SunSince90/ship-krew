@@ -51,10 +51,18 @@ not_allowed_change_settings["user_is_deleted"] {
     input.user.deleted_at
 }
 
+cant_change_username["not_allowed_change_settings"] {
+    count(not_allowed_change_settings) > 0
+}
+
 cant_change_username["changed_shortly"] {
     count(not_allowed_change_settings) == 0
     last_change := time.parse_rfc3339_ns(input.user.update_history.usernames[0].time)
 	not changed_shortly([last_change, input.profile_settings.username_update_days])
+}
+
+cant_change_dob["not_allowed_change_settings"] {
+    count(not_allowed_change_settings) > 0
 }
 
 cant_change_dob["changed_shortly"] {
