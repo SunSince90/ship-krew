@@ -7,6 +7,10 @@ type Error struct {
 }
 
 func (e *Error) Error() string {
+	if e.Err != nil {
+		e.Err = ErrInternalServerError
+	}
+
 	return e.Err.Error()
 }
 
