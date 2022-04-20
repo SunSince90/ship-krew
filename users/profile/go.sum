@@ -66,10 +66,10 @@ github.com/armon/go-metrics v0.0.0-20180917152333-f0300d1749da/go.mod h1:Q73ZrmV
 github.com/armon/go-metrics v0.3.10/go.mod h1:4O98XIr/9W0sxpJ8UaYkvjk10Iff7SnFrb4QAOwNTFc=
 github.com/armon/go-radix v0.0.0-20180808171621-7fddfc383310/go.mod h1:ufUuZ+zHj4x4TnLV4JWEpy2hxWSpsRywHrMgIH9cCH8=
 github.com/armon/go-radix v1.0.0/go.mod h1:ufUuZ+zHj4x4TnLV4JWEpy2hxWSpsRywHrMgIH9cCH8=
-github.com/asimpleidea/ship-krew/users/api v0.0.0-20220419201008-93952d1a2a39 h1:XwbwbybPgK/mtJ047qbYRjOmHJn2zwmvt3kjzhjp4d4=
-github.com/asimpleidea/ship-krew/users/api v0.0.0-20220419201008-93952d1a2a39/go.mod h1:Q9yH+i35SumitTY5PvtTtzBykLcRg0UWctg6O+5i27U=
-github.com/asimpleidea/ship-krew/users/policy v0.0.0-20220419201008-93952d1a2a39 h1:FYrDpIQdTmD5LPckXyL8Y8YmyZ/Sv3FxTqeaOWAnh/s=
-github.com/asimpleidea/ship-krew/users/policy v0.0.0-20220419201008-93952d1a2a39/go.mod h1:kjo/S4HlduHH2G+clcJFT7RAc1vhHWClKd15Qp2cO84=
+github.com/asimpleidea/ship-krew/users/api v0.0.0-20220420173850-e0873b1b5b8e h1:uIeZ3QP65r8iyqe4T7RWdDzxN/rlylwlFZlwC7UK4F4=
+github.com/asimpleidea/ship-krew/users/api v0.0.0-20220420173850-e0873b1b5b8e/go.mod h1:vBZss//a5lAgmat/99DolBv2M5sTucf7uL3yxlMVmPY=
+github.com/asimpleidea/ship-krew/users/policy v0.0.0-20220420173850-e0873b1b5b8e h1:vzCTaxuci5jOkIBsZECE2FSfL/UDdD4BcFReP7jUr/I=
+github.com/asimpleidea/ship-krew/users/policy v0.0.0-20220420173850-e0873b1b5b8e/go.mod h1:DhJ8JtDx/PXYNZRPxh4zKD0qfOekS5uA75O3dgMrC7k=
 github.com/aymerick/raymond v2.0.2+incompatible/go.mod h1:osfaiScAUVup+UC9Nfq76eWqDhXlp+4UYaA8uhTBO6g=
 github.com/beorn7/perks v0.0.0-20180321164747-3a771d992973/go.mod h1:Dwedo/Wpr24TaqPxmxbtue+5NUziq4I4S80YR8gNf3Q=
 github.com/beorn7/perks v1.0.0/go.mod h1:KWe93zE9D1o94FZ5RNwFwVgaQK1VOXiVxmqh+CedLV8=
