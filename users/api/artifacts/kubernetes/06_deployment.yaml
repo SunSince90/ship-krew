@@ -23,7 +23,7 @@ spec:
     spec:
       containers:
       - name: api
-        image: ghcr.io/asimpleidea/ship-krew-users-api:v0.3.0
+        image: ghcr.io/asimpleidea/ship-krew-users-api:v0.4.3
         imagePullPolicy: Always
         args:
         - "--verbosity=$(VERBOSITY)"

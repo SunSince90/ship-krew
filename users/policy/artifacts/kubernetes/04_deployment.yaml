@@ -23,7 +23,7 @@ spec:
     spec:
       containers:
       - name: policy
-        image: ghcr.io/asimpleidea/ship-krew-users-policy:testing-policy
+        image: ghcr.io/asimpleidea/ship-krew-users-policy:v0.4.3
         imagePullPolicy: Always
         args:
         - "--verbosity=$(VERBOSITY)"
