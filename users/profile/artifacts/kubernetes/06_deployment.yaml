@@ -23,7 +23,7 @@ spec:
     spec:
       containers:
       - name: profile
-        image: ghcr.io/asimpleidea/ship-krew-users-profile:v0.4.4
+        image: ghcr.io/asimpleidea/ship-krew-users-profile:v0.4.5
         imagePullPolicy: Always
         args:
         - "--verbosity=$(VERBOSITY)"

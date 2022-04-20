@@ -3,7 +3,7 @@ module github.com/asimpleidea/ship-krew/users/login
 go 1.18
 
 require (
-	github.com/asimpleidea/ship-krew/users/api v0.0.0-20220420173850-e0873b1b5b8e
+	github.com/asimpleidea/ship-krew/users/api v0.0.0-20220420181712-bba6876ab29d
 	github.com/go-redis/redis/v8 v8.11.5
 	github.com/gofiber/fiber/v2 v2.32.0
 	github.com/gofiber/template v1.6.27
