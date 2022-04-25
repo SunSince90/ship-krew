@@ -1,16 +1,28 @@
 apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: l5d-header-middleware
+  namespace: ship-krew-backend
+spec:
+  headers:
+    customRequestHeaders:
+      l5d-dst-override: "profiles.ship-krew-backend.svc.cluster.local:80"
+---
+apiVersion: traefik.containo.us/v1alpha1
 kind: IngressRoute
 metadata:
   # TODO: in future this may be splitted in multiple files
   name: profiles
   namespace: ship-krew-backend
+  annotations:
+    kubernetes.io/ingress.class: traefik
 spec:
   entryPoints:
   # TODO: should be secure
   - web
   routes:
   - kind: Rule
-    match: "Host(`cacca.com`) && PathPrefix(`/{username:[a-zA-Z0-9]+}`)"
+    match: "Host(`<host>`) && PathPrefix(`/{username:[a-zA-Z0-9]+}`)"
     priority: 1
     middlewares:
     - name: profiles-add-prefix
