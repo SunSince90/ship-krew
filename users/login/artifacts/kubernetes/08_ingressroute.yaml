@@ -1,16 +1,28 @@
 apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: l5d-header-middleware
+  namespace: ship-krew-backend
+spec:
+  headers:
+    customRequestHeaders:
+      l5d-dst-override: "login.ship-krew-backend.svc.cluster.local:80"
+---
+apiVersion: traefik.containo.us/v1alpha1
 kind: IngressRoute
 metadata:
   # TODO: in future this may be splitted in multiple files
   name: login
   namespace: ship-krew-backend
+  annotations:
+    kubernetes.io/ingress.class: traefik
 spec:
   entryPoints:
   # TODO: should be secure
   - web
   routes:
   - kind: Rule
-    match: "Host(`cacca.com`) && Path(`/login`, `/signup`)"
+    match: "Host(`<data>`) && Path(`/login`, `/signup`)"
     priority: 10
     services:
     - kind: Service
