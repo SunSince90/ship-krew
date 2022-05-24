@@ -1,0 +1,48 @@
+### ServiceProfile for users-api.ship-krew-backend ###
+apiVersion: linkerd.io/v1alpha2
+kind: ServiceProfile
+metadata:
+  name: login.ship-krew-backend.svc.cluster.local
+  namespace: ship-krew-backend
+spec:
+  routes:
+  - name: Login
+    condition:
+      all:
+      - pathRegex: '/login'
+      - method: POST
+      - method: GET
+    responseClasses:
+    - condition:
+        status:
+          min: 400
+          max: 599
+      isFailure: true
+    isRetryable: true
+  - name: Logout
+    condition:
+      pathRegex: '/logout'
+      method: GET
+    responseClasses:
+    - condition:
+        status:
+          min: 400
+          max: 599
+      isFailure: true
+  - name: Signup
+    condition:
+      all:
+      - pathRegex: '/signup'
+      - method: POST
+      - method: GET
+    responseClasses:
+    - condition:
+        status:
+          min: 400
+          max: 599
+      isFailure: true
+    isRetryable: true
+  retryBudget:
+    retryRatio: 0.2
+    minRetriesPerSecond: 5
+    ttl: 10s

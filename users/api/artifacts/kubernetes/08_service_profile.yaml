@@ -1,0 +1,79 @@
+### ServiceProfile for users-api.ship-krew-api ###
+apiVersion: linkerd.io/v1alpha2
+kind: ServiceProfile
+metadata:
+  name: users-api.ship-krew-api.svc.cluster.local
+  namespace: ship-krew-api
+spec:
+  routes:
+  - name: List users
+    condition:
+      pathRegex: '/users'
+      method: GET
+    responseClasses:
+    - condition:
+        status:
+          min: 400
+          max: 599
+      isFailure: true
+  - name: Get user by username
+    condition:
+      # TODO: check if regexes are correct
+      pathRegex: '/users/username/[^/]*'
+      method: GET
+    responseClasses:
+    - condition:
+        status:
+          min: 400
+          max: 599
+      isFailure: true
+    isRetryable: true
+  - name: Get user by ID
+    condition:
+      # TODO: check if regexes are correct
+      pathRegex: '/users/id/\d+'
+      method: GET
+    responseClasses:
+    - condition:
+        status:
+          min: 400
+          max: 599
+      isFailure: true
+    isRetryable: true
+  - name: Create new user
+    condition:
+      # TODO: check if regexes are correct
+      pathRegex: '/users'
+      method: POST
+    responseClasses:
+    - condition:
+        status:
+          min: 400
+          max: 599
+      isFailure: true
+  - name: Update user
+    condition:
+      # TODO: check if regexes are correct
+      pathRegex: '/users/id/\d+'
+      method: PUT
+    responseClasses:
+    - condition:
+        status:
+          min: 400
+          max: 599
+      isFailure: true
+  - name: Delete user
+    condition:
+      # TODO: check if regexes are correct
+      pathRegex: '/users/id/\d+'
+      method: DELETE
+    responseClasses:
+    - condition:
+        status:
+          min: 400
+          max: 599
+      isFailure: true
+  retryBudget:
+    retryRatio: 0.2
+    minRetriesPerSecond: 5
+    ttl: 10s
